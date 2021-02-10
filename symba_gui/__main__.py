@@ -16,6 +16,9 @@ class MainWindow(QMainWindow):
         action_new = menu_file.addAction("New Simulation")
         action_new.triggered.connect(self.actionNew)
 
+        action_new_window = menu_file.addAction("New Window")
+        action_new_window.triggered.connect(self.actionNewWindow)
+
         menu_file.addSeparator()
         menu_file.addAction("Open...")
         menu_file.addSeparator()
@@ -26,6 +29,9 @@ class MainWindow(QMainWindow):
         action_exit.triggered.connect(self.actionExit)
 
     def actionNew(self):
+        pass
+
+    def actionNewWindow(self):
         """Start a new experiment. Opens a new window.
         
         This process launches a new simulation window by creating a detached process. The way the process is created
