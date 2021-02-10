@@ -1,13 +1,17 @@
 import sys
-from argparse import ArgumentParser
 from subprocess import Popen
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication, QMainWindow, QMenu, QWidget
+
+from .cli import parse_args
 
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
+
+        self.__excepthook__ = sys.excepthook
+        sys.excepthook = self.excepthook
 
         menu_bar = self.menuBar()
 
@@ -50,25 +54,35 @@ class MainWindow(QMainWindow):
         
     def actionExit(self):
         self.close()
+    
+    # Exception handling ===============================================================================================
+    def excepthook(self, etype, value, tb):
+        message = QMessageBox(self)
+        message.setWindowTitle("Critical Error")
+        message.setText(
+            "An unknown critical error occured. It is recommended to save your work and restart NFB Studio.\n\n"
+            "Please inform the developer, describing what you were doing before the error, and attach the text below."
+        )
+        message.setIcon(message.Icon.Critical)
+
+        exception_field = QTextEdit()
+        exception_field.setText("".join(traceback.format_exception(etype, value, tb)))
+        exception_field.setReadOnly(True)
+        message.layout().addWidget(exception_field, 1, 0, 1, -1)
+        message.exec_()
+
+        self.__excepthook__(etype, value, tb)
 
 
 def main():
-    print(sys.argv[0])
-    parser = ArgumentParser()
-    parser.add_argument("--window-pos", help="new window position on the screen")
-
-    args = parser.parse_args()
-    if args.window_pos is not None:
-        args.window_pos = [int(x) for x in args.window_pos.split(",")]
-
     app = QApplication(sys.argv)
+    args = parse_args()
 
     main_window = MainWindow()
     if args.window_pos is not None:
         main_window.move(*args.window_pos)
 
     main_window.show()
-
     return app.exec_()
 
 
