@@ -291,9 +291,12 @@ class MainWindow(QMainWindow):
         pos_y = self.pos().y() + 40
         cli_args = ["--window-pos", f"{pos_x},{pos_y}"]
 
-        if sys.argv[0].endswith(".py"):
+        if sys.argv[0].endswith("__main__.py"):
             # Application launched with python
-            Popen([sys.executable, sys.argv[0]] + cli_args)
+            Popen(
+                [sys.executable, "-m", Path(sys.argv[0]).parent.name] + cli_args,
+                cwd=Path(sys.argv[0]).parent.parent
+            )
         else:
             # Assume the application was launched using an executable
             Popen([sys.argv[0]] + cli_args)
