@@ -8,7 +8,7 @@ from copy import deepcopy
 from PySide6.QtCore import Qt, QStandardPaths, QDir
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QMenu, QWidget, QLineEdit, QVBoxLayout, QDockWidget, QFormLayout, QGridLayout,
-    QFileDialog, QDialog, QCheckBox, QMessageBox, QListWidget, QDialogButtonBox, QFrame, QTextEdit
+    QFileDialog, QDialog, QCheckBox, QMessageBox, QListWidget, QDialogButtonBox, QFrame, QTextEdit, QComboBox, QHBoxLayout, QPushButton
 )
 from PySide6.QtSvgWidgets import QSvgWidget
 
@@ -243,6 +243,22 @@ class MainWindow(QMainWindow):
         self.wdock_exepicker.visibilityChanged.connect(lambda visible: self.action_view_exepicker.setChecked(visible))
         self.wdock_exepicker.hide()
         self.addDockWidget(Qt.LeftDockWidgetArea, self.wdock_exepicker)
+        
+        self.wexepicker = QWidget()
+        lyexepicker = QHBoxLayout()
+        self.wexepicker.setLayout(lyexepicker)
+        self.wdock_exepicker.setWidget(self.wexepicker)
+
+        self.exepicker_combobox = QComboBox()
+        for path in self.config["executables"]["paths"]:
+            self.exepicker_combobox.addItem(path)
+        self.exepicker_combobox.setCurrentText(self.config["executables"]["default"])
+
+        exepicker_button = QPushButton("Configure...")
+        exepicker_button.clicked.connect(self.actionShowPrefsExePicker)
+        
+        lyexepicker.addWidget(self.exepicker_combobox)
+        lyexepicker.addWidget(exepicker_button)
 
         # Menu bar -----------------------------------------------------------------------------------------------------
         menu_bar = self.menuBar()
@@ -311,10 +327,19 @@ class MainWindow(QMainWindow):
         dialog.setData(self.config["executables"])
 
         def finishedEvent(result):
-            print(result)
             if result:
                 self.config["executables"] = dialog.data()
-                print(self.config["executables"])
+
+                current_path = self.exepicker_combobox.currentText()
+                self.exepicker_combobox.clear()
+                for path in self.config["executables"]["paths"]:
+                    self.exepicker_combobox.addItem(path)
+
+                if current_path in self.config["executables"]["paths"]:
+                    self.exepicker_combobox.setCurrentText(current_path)
+                else:
+                    self.exepicker_combobox.setCurrentText(self.config["executables"]["default"])
+
         dialog.finished.connect(finishedEvent)
 
         dialog.show()
