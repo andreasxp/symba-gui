@@ -76,6 +76,8 @@ class MainWindow(QMainWindow):
 
 def main():
     app = QApplication(sys.argv)
+    app.setApplicationName("symba_gui")
+    app.setApplicationDisplayName("Symba Designer")
     args = parse_args()
 
     main_window = MainWindow()
