@@ -5,13 +5,14 @@ import json
 from subprocess import Popen
 from pathlib import Path
 from copy import deepcopy
-from PySide6.QtCore import Qt, QStandardPaths, QDir
-from PySide6.QtWidgets import (
+from PySide2.QtCore import Qt, QStandardPaths, QDir
+from PySide2.QtWidgets import (
     QApplication, QMainWindow, QMenu, QWidget, QLineEdit, QVBoxLayout, QDockWidget, QFormLayout, QGridLayout,
     QFileDialog, QDialog, QCheckBox, QMessageBox, QListWidget, QDialogButtonBox, QFrame, QTextEdit, QComboBox,
-    QHBoxLayout, QPushButton, QSpinBox, QDoubleSpinBox, QStyleFactory
+    QHBoxLayout, QPushButton, QSpinBox, QDoubleSpinBox, QStyleFactory, QTabWidget
 )
-from PySide6.QtSvgWidgets import QSvgWidget
+from PySide2.QtSvg import QSvgWidget
+from pyqtgraph import PlotWidget, PlotItem, BarGraphItem
 
 import symba_gui
 from .cli import parse_args
@@ -289,14 +290,24 @@ class MainWindow(QMainWindow):
         self.ws.setValue(0)
         lyconfig.addRow("s:", self.ws)
 
-        # --------------------------------------------------------------------------------------------------------------
-
         self.wadditional_args = QLineEdit()
         lyconfig.addRow("Additional arguments:", self.wadditional_args)
 
         self.wfinal_command = QLineEdit("symba --output-dir 'C:/Users/andreasxp/'")
         self.wfinal_command.setReadOnly(True)
         lyconfig.addRow("Final command:", self.wfinal_command)
+
+        # Plot area ----------------------------------------------------------------------------------------------------
+        self.wplot_area = QTabWidget()
+
+        wplot1 = PlotWidget()
+        y1 = [5, 5, 7, 10, 3, 8, 9, 1, 6, 2]
+        x = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+        bargraph = BarGraphItem(x=x, height=y1, width=0.6)
+        wplot1.addItem(bargraph)
+
+        self.wplot_area.addTab(wplot1, "test")
+        self.wplot_area.addTab(QWidget(), "test2")
 
         self.wsim_placeholder = QWidget()
         self.wsim_placeholder.setMinimumSize(px(8.695), px(6.522))
@@ -310,7 +321,7 @@ class MainWindow(QMainWindow):
         lysim_placeholder.setColumnStretch(2, 1)
         lysim_placeholder.addWidget(wsim_placeholder_svg, 1, 1)
         self.wsim_placeholder.setLayout(lysim_placeholder)
-        self.setCentralWidget(self.wsim_placeholder)
+        self.setCentralWidget(self.wplot_area)
 
         self.wdock_exepicker = QDockWidget("Executable Selection")
         self.wdock_exepicker.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)

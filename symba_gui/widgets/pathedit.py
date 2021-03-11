@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QWidget, QLineEdit, QPushButton, QHBoxLayout, QFileDialog
+from PySide2.QtWidgets import QWidget, QLineEdit, QPushButton, QHBoxLayout, QFileDialog
 
 
 class PathEdit(QWidget):

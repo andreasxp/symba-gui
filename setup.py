@@ -2,7 +2,8 @@
 from setuptools import setup, find_packages
 
 install_requires = [
-    "pyside6"
+    "pyside2",
+    "pyqtgraph"
 ]
 
 extras_require = {
