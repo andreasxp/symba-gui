@@ -358,7 +358,7 @@ class MainWindow(QMainWindow):
         message = QMessageBox(self)
         message.setWindowTitle("Critical Error")
         message.setText(
-            "An unknown critical error occured. It is recommended to save your work and restart NFB Studio.\n\n"
+            "An unknown critical error occured. It is recommended to save your work and restart Symba Designer.\n\n"
             "Please inform the developer, describing what you were doing before the error, and attach the text below."
         )
         message.setIcon(message.Icon.Critical)
@@ -376,6 +376,7 @@ def main():
     app = QApplication(sys.argv)
     app.setApplicationName("symba_gui")
     app.setApplicationDisplayName("Symba Designer")
+    app.setStyle(QStyleFactory.create("fusion"))
     args = parse_args()
 
     main_window = MainWindow()
