@@ -8,7 +8,8 @@ from copy import deepcopy
 from PySide6.QtCore import Qt, QStandardPaths, QDir
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QMenu, QWidget, QLineEdit, QVBoxLayout, QDockWidget, QFormLayout, QGridLayout,
-    QFileDialog, QDialog, QCheckBox, QMessageBox, QListWidget, QDialogButtonBox, QFrame, QTextEdit, QComboBox, QHBoxLayout, QPushButton
+    QFileDialog, QDialog, QCheckBox, QMessageBox, QListWidget, QDialogButtonBox, QFrame, QTextEdit, QComboBox,
+    QHBoxLayout, QPushButton, QSpinBox, QDoubleSpinBox, QStyleFactory
 )
 from PySide6.QtSvgWidgets import QSvgWidget
 
@@ -213,9 +214,82 @@ class MainWindow(QMainWindow):
         lyconfig = QFormLayout()
         self.wconfig.setLayout(lyconfig)
 
+        # Simulation options -------------------------------------------------------------------------------------------
         self.woutput_dir = PathEdit()
         self.woutput_dir.dialog().setFileMode(QFileDialog.ExistingFile)
         lyconfig.addRow("Output directory:", self.woutput_dir)
+
+        self.wn_agents = QSpinBox()
+        self.wn_agents.setRange(0, 10000)
+        self.wn_agents.setValue(500)
+        lyconfig.addRow("Number of agents (I):", self.wn_agents)
+
+        self.wn_stocks = QSpinBox()
+        self.wn_stocks.setRange(0, 10000)
+        self.wn_stocks.setValue(1)
+        lyconfig.addRow("Number of stocks (J):", self.wn_stocks)
+
+        self.wtime = QSpinBox()
+        self.wtime.setRange(0, 10000)
+        self.wtime.setValue(3875)
+        lyconfig.addRow("Amount of time steps (T):", self.wtime)
+
+        self.wrate = QDoubleSpinBox()
+        self.wrate.setRange(0, 10000)
+        self.wrate.setValue(0.01)
+        self.wrate.setSingleStep(0.01)
+        lyconfig.addRow("Rate:", self.wrate)
+
+        self.wplot = QCheckBox()
+        lyconfig.addRow("Build plots:", self.wplot)
+
+        self.wpd_condition = QCheckBox()
+        lyconfig.addRow("PD condition:", self.wpd_condition)
+
+        self.wtype_neb = QComboBox()
+        self.wtype_neb.addItems([
+            "Classic", "Algorithmic", "Human", "LossAversion", "Positivity", "Negativity", "DelayDiscounting", "Fear",
+            "Greed", "LearningRate"
+        ])
+        lyconfig.addRow("NEB type:", self.wtype_neb)
+
+        self.whp_gesture = QSpinBox()
+        self.whp_gesture.setRange(0, 3)
+        self.whp_gesture.setValue(0)
+        lyconfig.addRow("HP gesture:", self.whp_gesture)
+
+        self.whp_true_mu = QDoubleSpinBox()
+        self.whp_true_mu.setRange(0, 10000)
+        self.whp_true_mu.setValue(0.1)
+        self.whp_true_mu.setSingleStep(0.1)
+        lyconfig.addRow("HP true mu:", self.whp_true_mu)
+
+        self.whp_accuracy = QSpinBox()
+        self.whp_accuracy.setRange(0, 10000)
+        self.whp_accuracy.setValue(10)
+        lyconfig.addRow("HP accuracy:", self.whp_accuracy)
+
+        self.wliquidation_floor = QSpinBox()
+        self.wliquidation_floor.setRange(0, 10000)
+        self.wliquidation_floor.setValue(50)
+        lyconfig.addRow("Liquidation floor:", self.wliquidation_floor)
+
+        self.wleader_type = QComboBox()
+        self.wleader_type.addItems(["Worst", "Best", "Static", "Noise", "NoCluster"])
+        self.wleader_type.setCurrentText("NoCluster")
+        lyconfig.addRow("Leader type:", self.wleader_type)
+
+        self.wcluster_limit = QSpinBox()
+        self.wcluster_limit.setRange(0, 10000)
+        self.wcluster_limit.setValue(1)
+        lyconfig.addRow("Cluster limit:", self.wcluster_limit)
+
+        self.ws = QSpinBox()
+        self.ws.setRange(0, 10000)
+        self.ws.setValue(0)
+        lyconfig.addRow("s:", self.ws)
+
+        # --------------------------------------------------------------------------------------------------------------
 
         self.wadditional_args = QLineEdit()
         lyconfig.addRow("Additional arguments:", self.wadditional_args)
