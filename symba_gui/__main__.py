@@ -2,25 +2,24 @@ import sys
 import os
 import traceback
 import json
+import shlex
 from subprocess import Popen
 from pathlib import Path
 from copy import deepcopy
-from PySide2.QtCore import Qt, QStandardPaths, QDir
+from PySide2.QtCore import Qt, QStandardPaths, QDir, QSize
+from PySide2.QtGui import QIcon
 from PySide2.QtWidgets import (
     QApplication, QMainWindow, QMenu, QWidget, QLineEdit, QVBoxLayout, QDockWidget, QFormLayout, QGridLayout,
     QFileDialog, QDialog, QCheckBox, QMessageBox, QListWidget, QDialogButtonBox, QFrame, QTextEdit, QComboBox,
-    QHBoxLayout, QPushButton, QSpinBox, QDoubleSpinBox, QStyleFactory, QTabWidget
+    QHBoxLayout, QPushButton, QSpinBox, QDoubleSpinBox, QStyleFactory, QTabWidget, QStyle
 )
 from PySide2.QtSvg import QSvgWidget
 from pyqtgraph import PlotWidget, PlotItem, BarGraphItem
 
-import symba_gui
+import symba_gui as package
 from .cli import parse_args
 from .dpi import inches_to_pixels as px
 from .widgets import PathEdit
-
-
-module_root = Path(symba_gui.__file__).parent
 
 
 class PrefsExePicker(QDialog):
@@ -184,7 +183,7 @@ class MainWindow(QMainWindow):
                 self.config = json.load(f)
         else:
             # If config file does not exist, create it
-            default_executable_path = module_root / "bin/symba.exe"
+            default_executable_path = package.dir / "bin/symba.exe"
 
             self.config = {
                 "executables": {
@@ -199,6 +198,14 @@ class MainWindow(QMainWindow):
             with open(self.app_data_dir / "config.json", "w", encoding="utf-8") as f:
                 json.dump(self.config, f)
 
+        # Simulation data ----------------------------------------------------------------------------------------------
+        self.output_dir = self.app_data_dir / "instances" / str(os.getpid())
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+
+        # Clean data from previous launches
+        for file in self.output_dir.glob("**/*"):
+            file.unlink()
+
         # Contents -----------------------------------------------------------------------------------------------------
         w = QWidget()
         ly = QVBoxLayout()
@@ -212,42 +219,59 @@ class MainWindow(QMainWindow):
 
         self.wconfig = QWidget()
         self.wdock_config.setWidget(self.wconfig)
-        lyconfig = QFormLayout()
+        lyconfig = QVBoxLayout()
+        lyconfig.setSpacing(px(0.2))
         self.wconfig.setLayout(lyconfig)
+        
+        wconfigopts = QWidget()
+        wconfigopts.setContentsMargins(0, 0, 0, 0)
+        lyconfigopts = QFormLayout()
+        lyconfigopts.setContentsMargins(0, 0, 0, 0)
+        wconfigopts.setLayout(lyconfigopts)
+        lyconfig.addWidget(wconfigopts)
+
+        self.wsimulate_button = QPushButton(" Simulate")
+        self.wsimulate_button.setIcon(QIcon(str(package.dir / "data/play.svg")))
+        min_icon_size = QSize(
+            self.wsimulate_button.sizeHint().height() * 0.5,
+            self.wsimulate_button.sizeHint().height() * 0.5
+        )
+        self.wsimulate_button.setIconSize(min_icon_size)
+        self.wsimulate_button.setFixedWidth(px(1.561))
+        self.wsimulate_button.clicked.connect(self.actionSimulate)
+        lyconfig.addWidget(self.wsimulate_button)
+        lyconfig.setAlignment(self.wsimulate_button, Qt.AlignHCenter)
+        lyconfig.addStretch()
 
         # Simulation options -------------------------------------------------------------------------------------------
-        self.woutput_dir = PathEdit()
-        self.woutput_dir.dialog().setFileMode(QFileDialog.ExistingFile)
-        lyconfig.addRow("Output directory:", self.woutput_dir)
-
         self.wn_agents = QSpinBox()
         self.wn_agents.setRange(1, 9999)
         self.wn_agents.setValue(500)
-        lyconfig.addRow("Number of agents (I):", self.wn_agents)
+        lyconfigopts.addRow("Number of agents (I):", self.wn_agents)
 
         self.wn_stocks = QSpinBox()
         self.wn_stocks.setRange(1, 99)
         self.wn_stocks.setValue(1)
-        lyconfig.addRow("Number of stocks (J):", self.wn_stocks)
+        lyconfigopts.addRow("Number of stocks (J):", self.wn_stocks)
 
         self.wn_steps = QSpinBox()
         self.wn_steps.setRange(282, 9999)
         self.wn_steps.setValue(3875)
-        lyconfig.addRow("Number of time steps (T):", self.wn_steps)
+        lyconfigopts.addRow("Number of time steps (T):", self.wn_steps)
 
         self.wn_rounds = QSpinBox()
         self.wn_rounds.setRange(1, 9999)
         self.wn_rounds.setValue(1)
-        lyconfig.addRow("Number of rounds (S):", self.wn_rounds)
+        lyconfigopts.addRow("Number of rounds (S):", self.wn_rounds)
 
         self.wrate = QDoubleSpinBox()
         self.wrate.setRange(0.01, 1.99)
         self.wrate.setValue(0.01)
         self.wrate.setSingleStep(0.01)
-        lyconfig.addRow("Rate:", self.wrate)
+        lyconfigopts.addRow("Rate:", self.wrate)
 
         self.wplot = QCheckBox()
-        lyconfig.addRow("Build plots:", self.wplot)
+        lyconfigopts.addRow("Build plots:", self.wplot)
 
         self.wtype_neb = QComboBox()
         self.wtype_neb.addItems([
@@ -255,30 +279,30 @@ class MainWindow(QMainWindow):
             "Greed", "LearningRate"
         ])
         self.wtype_neb.setCurrentText("Classic")
-        lyconfig.addRow("NEB type:", self.wtype_neb)
+        lyconfigopts.addRow("NEB type:", self.wtype_neb)
 
         self.whp_gesture = QSpinBox()
         self.whp_gesture.setRange(1, 9)
         self.whp_gesture.setValue(1)
-        lyconfig.addRow("HP gesture:", self.whp_gesture)
+        lyconfigopts.addRow("HP gesture:", self.whp_gesture)
 
         self.wliquidation_floor = QSpinBox()
         self.wliquidation_floor.setRange(1, 99)
         self.wliquidation_floor.setValue(50)
-        lyconfig.addRow("Liquidation floor:", self.wliquidation_floor)
+        lyconfigopts.addRow("Liquidation floor:", self.wliquidation_floor)
 
         self.wleader_type = QComboBox()
         self.wleader_type.addItems(["Worst", "Best", "Static", "Noise", "NoCluster"])
         self.wleader_type.setCurrentText("NoCluster")
-        lyconfig.addRow("Leader type:", self.wleader_type)
+        lyconfigopts.addRow("Leader type:", self.wleader_type)
 
         self.wcluster_limit = QSpinBox()
         self.wcluster_limit.setRange(1, 9999)
         self.wcluster_limit.setValue(1)
-        lyconfig.addRow("Cluster limit:", self.wcluster_limit)
+        lyconfigopts.addRow("Cluster limit:", self.wcluster_limit)
 
         self.wadditional_args = QLineEdit()
-        lyconfig.addRow("Additional arguments:", self.wadditional_args)
+        lyconfigopts.addRow("Additional arguments:", self.wadditional_args)
 
         # Plot area ----------------------------------------------------------------------------------------------------
         self.wplot_area = QTabWidget()
@@ -294,7 +318,7 @@ class MainWindow(QMainWindow):
 
         self.wsim_placeholder = QWidget()
         self.wsim_placeholder.setMinimumSize(px(8.695), px(6.522))
-        wsim_placeholder_svg = QSvgWidget(str(module_root / "assets/sim_placeholder.svg"))
+        wsim_placeholder_svg = QSvgWidget(str(package.dir / "data/sim_placeholder.svg"))
         wsim_placeholder_svg.setFixedSize(wsim_placeholder_svg.renderer().defaultSize())
 
         lysim_placeholder = QGridLayout()
@@ -362,6 +386,43 @@ class MainWindow(QMainWindow):
         self.action_view_exepicker.setChecked(False)
         self.action_view_exepicker.triggered.connect(lambda checked: self.wdock_exepicker.setVisible(checked))
 
+    def simulationArgs(self):
+        """Generate a dict of simulation arguments. Dict keys are long CLI parameters without --.
+        The dict does not include application-defined parameters, such as output-dir.
+        """
+        args = {
+            "n-agents": self.wn_agents.value(),
+            "n-stocks": self.wn_stocks.value(),
+            "n-steps": self.wn_steps.value(),
+            "n-rounds": self.wn_rounds.value(),
+            "rate": self.wrate.value(),
+            "plot": self.wplot.isChecked(),
+            "type-neb": self.wtype_neb.currentText(),
+            "hp-gesture": self.whp_gesture.value(),
+            "liquidation-floor": self.wliquidation_floor.value(),
+            "leader-type": self.wleader_type.currentText(),
+            "cluster-limit": self.wcluster_limit.value(),
+
+            # Special value for storing extra arguments
+            "__extra": shlex.split(self.wadditional_args.text())
+        }
+
+        return args
+
+    def simulationCliArgs(self):
+        args_dict = self.simulationArgs()
+        args = []
+
+        extra = args_dict["__extra"]
+        args_dict.pop("__extra")
+
+        for key, value in args_dict.items():
+            args.append("--" + key)
+            args.append(str(value))
+        
+        args += extra
+        return args
+
     def actionNew(self):
         pass
 
@@ -384,9 +445,18 @@ class MainWindow(QMainWindow):
         else:
             # Assume the application was launched using an executable
             Popen([sys.argv[0]] + cli_args)
-        
+    
+    def actionSaveAs(self):
+        pass
+
     def actionExit(self):
         self.close()
+    
+    def actionSimulate(self):
+        """Start the simulation."""
+        executable = self.config["executables"]["default"]
+        args = self.simulationCliArgs()
+        print([executable] + args)
     
     # Properties =======================================================================================================
     def actionShowPrefsExePicker(self):
