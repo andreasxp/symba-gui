@@ -247,23 +247,23 @@ class MainWindow(QMainWindow):
 
         # Simulation options -------------------------------------------------------------------------------------------
         self.wn_agents = QSpinBox()
-        self.wn_agents.setRange(1, 9999)
+        self.wn_agents.setRange(10, 10000)
         lyconfigopts.addRow("Number of agents (I):", self.wn_agents)
 
         self.wn_stocks = QSpinBox()
-        self.wn_stocks.setRange(1, 99)
+        self.wn_stocks.setRange(1, 100)
         lyconfigopts.addRow("Number of stocks (J):", self.wn_stocks)
 
         self.wn_steps = QSpinBox()
-        self.wn_steps.setRange(282, 9999)
+        self.wn_steps.setRange(281, 10000)
         lyconfigopts.addRow("Number of time steps (T):", self.wn_steps)
 
         self.wn_rounds = QSpinBox()
-        self.wn_rounds.setRange(1, 9999)
+        self.wn_rounds.setRange(1, 10000)
         lyconfigopts.addRow("Number of rounds (S):", self.wn_rounds)
 
         self.wrate = QDoubleSpinBox()
-        self.wrate.setRange(0.01, 1.99)
+        self.wrate.setRange(0, 2)
         self.wrate.setSingleStep(0.01)
         lyconfigopts.addRow("Rate:", self.wrate)
 
@@ -277,12 +277,13 @@ class MainWindow(QMainWindow):
         ])
         lyconfigopts.addRow("NEB type:", self.wtype_neb)
 
-        self.whp_gesture = QSpinBox()
-        self.whp_gesture.setRange(1, 9)
+        self.whp_gesture = QDoubleSpinBox()
+        self.whp_gesture.setRange(1, 10)
+        self.wrate.setSingleStep(0.01)
         lyconfigopts.addRow("HP gesture:", self.whp_gesture)
 
         self.wliquidation_floor = QSpinBox()
-        self.wliquidation_floor.setRange(1, 99)
+        self.wliquidation_floor.setRange(0, 100)
         lyconfigopts.addRow("Liquidation floor:", self.wliquidation_floor)
 
         self.wleader_type = QComboBox()
@@ -290,7 +291,7 @@ class MainWindow(QMainWindow):
         lyconfigopts.addRow("Leader type:", self.wleader_type)
 
         self.wcluster_limit = QSpinBox()
-        self.wcluster_limit.setRange(1, 9999)
+        self.wcluster_limit.setRange(0, 100)
         lyconfigopts.addRow("Cluster limit:", self.wcluster_limit)
 
         self.wadditional_args = QLineEdit()
