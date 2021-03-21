@@ -3,9 +3,12 @@ import os
 import traceback
 import json
 import shlex
+import shutil
 from subprocess import Popen
 from pathlib import Path
 from copy import deepcopy
+from zipfile import ZipFile
+
 from PySide2.QtCore import Qt, QStandardPaths, QDir, QSize
 from PySide2.QtGui import QIcon
 from PySide2.QtWidgets import (
@@ -27,9 +30,9 @@ class PrefsExePicker(QDialog):
         super().__init__(parent)
         self.setWindowTitle("Preferences: Symba Executables")
 
-        self._data = {}
-        """Data about the executable list. See setData for format."""
-        self._original_data = {}
+        self.executables = None
+        self.user_choice = None
+        self.builtin = None
 
         self.wpath_list = QListWidget()
         self.wpath_list.setSortingEnabled(True)
@@ -70,13 +73,15 @@ class PrefsExePicker(QDialog):
             action_add_path = menu.addAction("Add Path...")
 
             def getPath():
-                path = QFileDialog.getOpenFileName(self, "Choose an executable for running the simulation", QDir.homePath(), "Executables (*.exe)")[0]
+                path = QFileDialog.getOpenFileName(
+                    self, "Choose an executable for running the simulation", QDir.homePath(), "Executables (*.exe)"
+                )[0]
                 self.addPath(path)
 
             action_add_path.triggered.connect(getPath)
 
             menu.exec_(global_pos)
-        elif item.text() == self._data["built-in"]:
+        elif item.text() == self.builtin:
             pass
         else:
             menu = QMenu()
@@ -86,42 +91,36 @@ class PrefsExePicker(QDialog):
             menu.exec_(global_pos)
 
     def currentTextChangedEvent(self, text):
-        self.wis_default.setChecked(text == self._data["default"])
-        self.wis_default.setDisabled(text == self._data["built-in"])
+        self.wis_default.setChecked(text == self.user_choice)
+        self.wis_default.setDisabled(text == self.builtin)
 
     def checkboxStateChangedEvent(self, checked):
-        if checked == (self._data["default"] == self.wpath_list.currentItem().text()):
+        if checked == (self.user_choice == self.wpath_list.currentItem().text()):
             # Everything as it should be
             return
 
         if checked:
-            self._data["default"] = self.wpath_list.currentItem().text()
+            self.user_choice = self.wpath_list.currentItem().text()
         else:
-            self._data["default"] = self._data["built-in"]
+            self.user_choice = self.builtin
 
-    def setData(self, data: dict):
-        """Set current data into the dialog.
-        Data is loaded from a dict with a predefined format:
-        {
-            "paths": [
-                "C:/Users/User/symba.exe",
-                ...
-            ],
-            "default": "C:/Users/User/symba.exe"
-            "built-in": "<install-path>/bin/symba.exe"
-        }
-        """
-        self._data = deepcopy(data)
-        self._original_data = deepcopy(data)
+    def setData(self, executables, user_choice, builtin):
+        """Set current data into the dialog."""
+        self.executables = [str(path) for path in executables]
+        self.user_choice = str(user_choice)
+        self.builtin = str(builtin)
+
+        self.original_executables = self.executables
+        self.original_user_choice = self.user_choice
 
         self.wpath_list.clear()
-        for path in data["paths"]:
+        for path in self.executables:
             self.wpath_list.addItem(path)
 
     def addPath(self, path):
-        if path not in self._data["paths"]:
+        if path not in self.executables:
             # No such path yet
-            self._data["paths"].append(path)
+            self.executables.append(path)
             self.wpath_list.addItem(path)
         
         item = self.wpath_list.findItems(path, Qt.MatchExactly)[0]
@@ -134,16 +133,16 @@ class PrefsExePicker(QDialog):
 
         item = self.wpath_list.findItems(path, Qt.MatchExactly)[0]
         self.wpath_list.takeItem(self.wpath_list.row(item))
-        self._data["paths"].remove(item.text())
+        self.executables.remove(item.text())
         
-        if self._data["default"] == path:
-            self._data["default"] = self._data["built-in"]
+        if self.user_choice == path:
+            self.user_choice = self.builtin
 
     def data(self):
-        return self._data
+        return [Path(s) for s in self.executables], Path(self.user_choice)
 
     def closeEvent(self, event):
-        if self._data != self._original_data:
+        if self.executables != self.original_executables or self.user_choice != self.original_user_choice:
             msg = QMessageBox(self)
             msg.setWindowTitle("Preferences: Symba Executables")
             msg.setText("Save changes to the executable list?")
@@ -180,30 +179,33 @@ class MainWindow(QMainWindow):
         if (self.app_data_dir / "config.json").exists():
             # Load config file
             with open(self.app_data_dir / "config.json", "r", encoding="utf-8") as f:
-                self.config = json.load(f)
-        else:
-            # If config file does not exist, create it
-            default_executable_path = package.dir / "bin/symba.exe"
+                config = json.load(f)
 
-            self.config = {
-                "executables": {
-                    "paths": [
-                        str(default_executable_path)
-                    ],
-                    "default": str(default_executable_path),
-                    "built-in": str(default_executable_path)
-                }
-            }
+            self.save_dir = Path(config["save_dir"])
+            self.builtin_executable = Path(config["executables"]["built-in"])
+            self.executable = Path(config["executables"]["user-choice"])
+            self.executables = [Path(s) for s in config["executables"]["paths"]]
+        else:
+            # If config file does not exist, create from defaults and write it
+            self.save_dir = Path(QStandardPaths.standardLocations(QStandardPaths.DocumentsLocation)[0])
+            self.builtin_executable = package.dir / "bin" / "symba.exe"
+            self.executable = self.builtin_executable
+            self.executables = [self.builtin_executable]
 
             with open(self.app_data_dir / "config.json", "w", encoding="utf-8") as f:
-                json.dump(self.config, f)
+                json.dump(self.config(), f, ensure_ascii=False, indent=4)
 
         # Simulation data ----------------------------------------------------------------------------------------------
+        self.opened_file = None  # Which file is this instance associated with. Changes with New or Open actions.
+        self.simulated = None  # Whether this simulation has been completed or not (initialized later).
+        self.saved_simulated = None
+        self.saved_model_params = None
+
         self.output_dir = self.app_data_dir / "instances" / str(os.getpid())
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
         # Clean data from previous launches
-        for file in self.output_dir.glob("**/*"):
+        for file in self.output_dir.rglob("*"):
             file.unlink()
 
         # Contents -----------------------------------------------------------------------------------------------------
@@ -246,27 +248,22 @@ class MainWindow(QMainWindow):
         # Simulation options -------------------------------------------------------------------------------------------
         self.wn_agents = QSpinBox()
         self.wn_agents.setRange(1, 9999)
-        self.wn_agents.setValue(500)
         lyconfigopts.addRow("Number of agents (I):", self.wn_agents)
 
         self.wn_stocks = QSpinBox()
         self.wn_stocks.setRange(1, 99)
-        self.wn_stocks.setValue(1)
         lyconfigopts.addRow("Number of stocks (J):", self.wn_stocks)
 
         self.wn_steps = QSpinBox()
         self.wn_steps.setRange(282, 9999)
-        self.wn_steps.setValue(3875)
         lyconfigopts.addRow("Number of time steps (T):", self.wn_steps)
 
         self.wn_rounds = QSpinBox()
         self.wn_rounds.setRange(1, 9999)
-        self.wn_rounds.setValue(1)
         lyconfigopts.addRow("Number of rounds (S):", self.wn_rounds)
 
         self.wrate = QDoubleSpinBox()
         self.wrate.setRange(0.01, 1.99)
-        self.wrate.setValue(0.01)
         self.wrate.setSingleStep(0.01)
         lyconfigopts.addRow("Rate:", self.wrate)
 
@@ -278,27 +275,22 @@ class MainWindow(QMainWindow):
             "Classic", "Algorithmic", "Human", "LossAversion", "Positivity", "Negativity", "DelayDiscounting", "Fear",
             "Greed", "LearningRate"
         ])
-        self.wtype_neb.setCurrentText("Classic")
         lyconfigopts.addRow("NEB type:", self.wtype_neb)
 
         self.whp_gesture = QSpinBox()
         self.whp_gesture.setRange(1, 9)
-        self.whp_gesture.setValue(1)
         lyconfigopts.addRow("HP gesture:", self.whp_gesture)
 
         self.wliquidation_floor = QSpinBox()
         self.wliquidation_floor.setRange(1, 99)
-        self.wliquidation_floor.setValue(50)
         lyconfigopts.addRow("Liquidation floor:", self.wliquidation_floor)
 
         self.wleader_type = QComboBox()
         self.wleader_type.addItems(["Worst", "Best", "Static", "Noise", "NoCluster"])
-        self.wleader_type.setCurrentText("NoCluster")
         lyconfigopts.addRow("Leader type:", self.wleader_type)
 
         self.wcluster_limit = QSpinBox()
         self.wcluster_limit.setRange(1, 9999)
-        self.wcluster_limit.setValue(1)
         lyconfigopts.addRow("Cluster limit:", self.wcluster_limit)
 
         self.wadditional_args = QLineEdit()
@@ -342,9 +334,9 @@ class MainWindow(QMainWindow):
         self.wdock_exepicker.setWidget(self.wexepicker)
 
         self.exepicker_combobox = QComboBox()
-        for path in self.config["executables"]["paths"]:
-            self.exepicker_combobox.addItem(path)
-        self.exepicker_combobox.setCurrentText(self.config["executables"]["default"])
+        for path in self.executables:
+            self.exepicker_combobox.addItem(str(path))
+        self.exepicker_combobox.setCurrentText(str(self.executable))
 
         exepicker_button = QPushButton("Configure...")
         exepicker_button.clicked.connect(self.actionShowPrefsExePicker)
@@ -366,8 +358,10 @@ class MainWindow(QMainWindow):
         menu_file.addSeparator()
         menu_file.addAction("Open...")
         menu_file.addSeparator()
-        menu_file.addAction("Save")
-        menu_file.addAction("Save As...")
+        action_save = menu_file.addAction("Save")
+        action_save.triggered.connect(self.actionSave)
+        action_save_as = menu_file.addAction("Save As...")
+        action_save_as.triggered.connect(self.actionSaveAs)
         menu_file.addSeparator()
         menu_preferences = menu_file.addMenu("Preferences")
         action_prefs_exepicker = menu_preferences.addAction("Symba Executables")
@@ -386,8 +380,15 @@ class MainWindow(QMainWindow):
         self.action_view_exepicker.setChecked(False)
         self.action_view_exepicker.triggered.connect(lambda checked: self.wdock_exepicker.setVisible(checked))
 
-    def simulationArgs(self):
-        """Generate a dict of simulation arguments. Dict keys are long CLI parameters without --.
+        # --------------------------------------------------------------------------------------------------------------
+        self.loadNewFile()
+
+    def modelChanged(self):
+        """Return True if the model configuration/simulation is different from when the file was first opened."""
+        return self.saved_simulated != self.simulated or self.saved_model_params != self.modelParams()
+
+    def modelParams(self):
+        """Generate a dict of simulation parameters. Dict keys are long CLI parameters without --.
         The dict does not include application-defined parameters, such as output-dir.
         """
         args = {
@@ -403,14 +404,15 @@ class MainWindow(QMainWindow):
             "leader-type": self.wleader_type.currentText(),
             "cluster-limit": self.wcluster_limit.value(),
 
-            # Special value for storing extra arguments
+            # Special value for storing extra parameters
             "__extra": shlex.split(self.wadditional_args.text())
         }
 
         return args
 
-    def simulationCliArgs(self):
-        args_dict = self.simulationArgs()
+    def cliArgs(self):
+        """Generate a list of CLI arguments for launching current configuration in symba executable."""
+        args_dict = self.modelParams()
         args = []
 
         extra = args_dict["__extra"]
@@ -423,8 +425,92 @@ class MainWindow(QMainWindow):
         args += extra
         return args
 
-    def actionNew(self):
+    def config(self):
+        """Get all persistent configuration options as a dict."""
+        config = {
+            "executables": {
+                "paths": [str(path) for path in self.executables],
+                "user-choice": str(self.executable),
+                "built-in": str(self.builtin_executable)
+            },
+            "save_dir": str(self.save_dir)
+        }
+
+        return config
+
+    def loadFile(self, path):
+        """Load file from zip, without prompting user for changes."""
         pass
+    
+    def loadNewFile(self):
+        self.opened_file = None
+        self.simulated = False
+        self.saved_simulated = self.simulated  # For comparison for "save changes" dialog
+
+        self.wn_agents.setValue(500)
+        self.wn_stocks.setValue(1)
+        self.wn_steps.setValue(3875)
+        self.wn_rounds.setValue(1)
+        self.wrate.setValue(0.01)
+        self.wplot.setChecked(False)
+        self.wtype_neb.setCurrentText("Classic")
+        self.whp_gesture.setValue(1)
+        self.wliquidation_floor.setValue(50)
+        self.wleader_type.setCurrentText("NoCluster")
+        self.wcluster_limit.setValue(1)
+        self.wadditional_args.setText("")
+
+        self.saved_model_params = self.modelParams()  # For comparison for "save changes" dialog
+
+    def saveFile(self, path):
+        """Save current model to zip."""
+        if not self.simulated:
+            # If not simulated, just write the model parameters.
+            with open(self.output_dir / "ModelParameters.json", "w", encoding="utf-8") as f:
+                json.dump(self.modelParams(), f, ensure_ascii=False, indent=4)
+        
+        with ZipFile(path, "w") as zip:
+            for file in self.output_dir.rglob("*"):
+                zip.write(file, file.relative_to(self.output_dir))
+        
+        self.opened_file = path
+        # Update saved_ values
+        self.saved_simulated = self.simulated
+        self.saved_model_params = self.modelParams()
+
+    # Actions ==========================================================================================================
+    def promptSaveChanges(self) -> bool:
+        """Prompt the user to save changes to current project.
+        Display a message box asking the user if they want to save changes. If user selects Save, execute actionSave.
+        Returns True if the user decided to discard changes or saved the file, and False if the user cancelled operation
+        either during prompt or during save.
+        """
+        prompt = QMessageBox()
+        prompt.setWindowTitle("Save changes to this file?")
+        prompt.setIcon(QMessageBox.Warning)
+
+        if self.opened_file is None:
+            prompt.setText(f"Save changes to this model before closing?")
+        else:
+            prompt.setText(f"Save changes to \"{self.opened_file.name}\" before closing?")
+
+        prompt.setStandardButtons(QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel)
+        prompt.setDefaultButton(QMessageBox.Save)
+        
+        answer = prompt.exec_()
+        if answer == QMessageBox.Cancel:
+            return False
+        if answer == QMessageBox.Save:
+            return self.actionSave()
+        return True
+
+    def actionNew(self):
+        if self.modelChanged():
+            if not self.promptSaveChanges():
+                # Model changed and user cancelled during prompt
+                return
+        
+        self.loadNewFile()
 
     def actionNewWindow(self):
         """Start a new experiment. Opens a new window.
@@ -445,38 +531,65 @@ class MainWindow(QMainWindow):
         else:
             # Assume the application was launched using an executable
             Popen([sys.argv[0]] + cli_args)
-    
-    def actionSaveAs(self):
-        pass
+
+    def actionSave(self) -> bool:
+        if self.opened_file:
+            self.saveFile(self.opened_file)
+            return True  # Success
+        
+        return self.actionSaveAs()
+
+    def actionSaveAs(self) -> bool:
+        if self.opened_file:
+            save_dir = self.opened_file
+        else:
+            save_dir = self.save_dir / "Untitled.symba"
+
+        dialog = QFileDialog(
+            parent=self, caption="Save As", directory=str(save_dir), filter="Simulation Files (*.symba)"
+        )
+        dialog.setFileMode(dialog.AnyFile)
+        dialog.setAcceptMode(dialog.AcceptSave)
+        dialog.setDefaultSuffix(".symba")
+
+        ok = dialog.exec_()
+        self.save_dir = Path(dialog.directory().absolutePath())
+
+        if not ok:
+            return False  # User cancelled
+        
+        path = Path(dialog.selectedFiles()[0])
+        self.saveFile(path)
+        return True
 
     def actionExit(self):
+        # All actions are handled in closeEvent()
         self.close()
     
     def actionSimulate(self):
         """Start the simulation."""
-        executable = self.config["executables"]["default"]
-        args = self.simulationCliArgs()
-        print([executable] + args)
+        args = self.cliArgs()
+        print([str(self.executable)] + args)
     
     # Properties =======================================================================================================
     def actionShowPrefsExePicker(self):
         """Show preferences dialog for the execuatable picker."""
         dialog = PrefsExePicker(self)
-        dialog.setData(self.config["executables"])
+        dialog.setData(self.executables, self.executable, self.builtin_executable)
 
         def finishedEvent(result):
             if result:
-                self.config["executables"] = dialog.data()
+                self.executables, self.executable = dialog.data()
 
-                current_path = self.exepicker_combobox.currentText()
+                current_path = Path(self.exepicker_combobox.currentText())
                 self.exepicker_combobox.clear()
-                for path in self.config["executables"]["paths"]:
-                    self.exepicker_combobox.addItem(path)
+                for path in self.executables:
+                    self.exepicker_combobox.addItem(str(path))
 
-                if current_path in self.config["executables"]["paths"]:
-                    self.exepicker_combobox.setCurrentText(current_path)
+                if current_path in self.executables:
+                    self.exepicker_combobox.setCurrentText(str(current_path))
                 else:
-                    self.exepicker_combobox.setCurrentText(self.config["executables"]["default"])
+                    self.exepicker_combobox.setCurrentText(str(self.executable))
 
         dialog.finished.connect(finishedEvent)
 
@@ -486,8 +599,17 @@ class MainWindow(QMainWindow):
 
     # Events ===========================================================================================================
     def closeEvent(self, event):
+        if self.modelChanged():
+            if not self.promptSaveChanges():
+                # Model changed and user cancelled during prompt
+                event.ignore()
+                return
+
+        # Remove output directory for this instance
+        shutil.rmtree(self.output_dir)
+
         with open(self.app_data_dir / "config.json", "w", encoding="utf-8") as f:
-            json.dump(self.config, f, ensure_ascii=False, indent="\t")
+            json.dump(self.config(), f, ensure_ascii=False, indent=4)
 
         event.accept()
 
