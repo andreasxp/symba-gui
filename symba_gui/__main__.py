@@ -23,6 +23,7 @@ import symba_gui as package
 from .cli import parse_args
 from .dpi import inches_to_pixels as px
 from .widgets import PathEdit
+from .simulation import Simulation
 
 
 class PrefsExePicker(QDialog):
@@ -413,6 +414,7 @@ class MainWindow(QMainWindow):
 
     def cliArgs(self):
         """Generate a list of CLI arguments for launching current configuration in symba executable."""
+        # Add model paramterers
         args_dict = self.modelParams()
         args = []
 
@@ -424,6 +426,10 @@ class MainWindow(QMainWindow):
             args.append(str(value))
         
         args += extra
+
+        # Add hidden parameters
+        output_dir = ["--output-dir", str(self.output_dir)]
+        args += output_dir
         return args
 
     def config(self):
@@ -571,6 +577,11 @@ class MainWindow(QMainWindow):
         """Start the simulation."""
         args = self.cliArgs()
         print([str(self.executable)] + args)
+
+        self.simulation = Simulation([str(self.executable)] + args)
+        self.simulation.stepChanged.connect(lambda round, step: print(f"{round}: {step}"))
+        self.simulation.completed.connect(self.onSimulationCompleted)
+        self.simulation.start()
     
     # Properties =======================================================================================================
     def actionShowPrefsExePicker(self):
@@ -613,6 +624,10 @@ class MainWindow(QMainWindow):
             json.dump(self.config(), f, ensure_ascii=False, indent=4)
 
         event.accept()
+
+    def onSimulationCompleted(self, result):
+        if result != 0:
+            raise RuntimeError("The simulation completed with errors")
 
     # Exception handling ===============================================================================================
     def excepthook(self, etype, value, tb):
