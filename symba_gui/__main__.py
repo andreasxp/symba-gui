@@ -14,7 +14,7 @@ from PySide2.QtGui import QIcon
 from PySide2.QtWidgets import (
     QApplication, QMainWindow, QMenu, QWidget, QLineEdit, QVBoxLayout, QDockWidget, QFormLayout, QGridLayout,
     QFileDialog, QDialog, QCheckBox, QMessageBox, QListWidget, QDialogButtonBox, QFrame, QTextEdit, QComboBox,
-    QHBoxLayout, QPushButton, QSpinBox, QDoubleSpinBox, QStyleFactory, QTabWidget, QStyle
+    QHBoxLayout, QPushButton, QSpinBox, QDoubleSpinBox, QStyleFactory, QTabWidget, QStyle, QProgressBar
 )
 from PySide2.QtSvg import QSvgWidget
 from pyqtgraph import PlotWidget, PlotItem, BarGraphItem
@@ -226,17 +226,25 @@ class MainWindow(QMainWindow):
         lycontrol = QVBoxLayout()
         self.wcontrol.setLayout(lycontrol)
 
-        self.wsimulate_button = QPushButton(" Simulate")
-        self.wsimulate_button.setIcon(QIcon(str(package.dir / "data/play.svg")))
+        wcontainer = QWidget()
+        wcontainer.setContentsMargins(0, 0, 0, 0)
+        lycontainer = QHBoxLayout()
+        lycontainer.setContentsMargins(0, 0, 0, 0)
+        wcontainer.setLayout(lycontainer)
+
+        self.wsim_button = QPushButton(" Simulate")
+        self.wsim_button.setIcon(QIcon(str(package.dir / "data/play.svg")))
         min_icon_size = QSize(
-            self.wsimulate_button.sizeHint().height() * 0.5,
-            self.wsimulate_button.sizeHint().height() * 0.5
+            self.wsim_button.sizeHint().height() * 0.5,
+            self.wsim_button.sizeHint().height() * 0.5
         )
-        self.wsimulate_button.setIconSize(min_icon_size)
-        self.wsimulate_button.setFixedWidth(px(1.561))
-        self.wsimulate_button.clicked.connect(self.actionSimulate)
-        lycontrol.addWidget(self.wsimulate_button)
-        lycontrol.setAlignment(self.wsimulate_button, Qt.AlignHCenter)
+        self.wsim_button.setIconSize(min_icon_size)
+        self.wsim_button.clicked.connect(self.actionSimulate)
+        lycontainer.addWidget(self.wsim_button)
+
+        self.wsim_progess_bar = QProgressBar()
+        lycontainer.addWidget(self.wsim_progess_bar)
+        lycontrol.addWidget(wcontainer)
         lycontrol.addStretch()
 
         # Simulation Properties ----------------------------------------------------------------------------------------
@@ -586,6 +594,15 @@ class MainWindow(QMainWindow):
     
     def actionSimulate(self):
         """Start the simulation."""
+        self.wsim_progess_bar.setRange(0, 0)
+        
+        n_rounds = self.wn_rounds.value()
+        n_steps = self.wn_steps.value()
+        def updateProgressBar(round, step):
+            self.wsim_progess_bar.setRange(0, n_rounds * n_steps)
+            self.wsim_progess_bar.setValue(round * n_steps + step)
+        self.simulation.stepChanged.connect(updateProgressBar)
+
         args = [str(self.executable)] + self.cliArgs()
         self.simulation.start(args)
     
