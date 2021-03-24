@@ -239,7 +239,7 @@ class MainWindow(QMainWindow):
             self.wsim_button.sizeHint().height() * 0.5
         )
         self.wsim_button.setIconSize(min_icon_size)
-        self.wsim_button.clicked.connect(self.actionSimulate)
+        self.wsim_button.clicked.connect(self.actionStartSimulation)
         lycontainer.addWidget(self.wsim_button)
 
         self.wsim_progess_bar = QProgressBar()
@@ -469,7 +469,7 @@ class MainWindow(QMainWindow):
         self.opened_file = None
         self.simulation = Simulation()
         self.simulation.stepChanged.connect(lambda round, step: print(f"{round}: {step}"))
-        self.simulation.completed.connect(self.onSimulationCompleted)
+        self.simulation.completed.connect(self.onSimulationFinished)
 
         self.saved_return_code = None  # For comparison for "save changes" dialog
 
@@ -528,6 +528,26 @@ class MainWindow(QMainWindow):
             return False
         if answer == QMessageBox.Save:
             return self.actionSave()
+        return True
+    
+    def promptStopSimulation(self) -> bool:
+        """Prompt the user to stop the simulation.
+        If the user declines, return False. If the user accepts, return True.
+        """
+        prompt = QMessageBox()
+        prompt.setWindowTitle("Stop simulation?")
+        prompt.setIcon(QMessageBox.Warning)
+        prompt.setText("Stop running this simulation?")
+        prompt.setInformativeText("If the simulation is stopped, no results will be saved.")
+
+        prompt.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
+        prompt.setDefaultButton(QMessageBox.Cancel)
+        
+        answer = prompt.exec_()
+        if answer == QMessageBox.Cancel:
+            return False
+        if answer == QMessageBox.Ok:
+            return True
         return True
 
     def actionNew(self):
@@ -592,10 +612,10 @@ class MainWindow(QMainWindow):
         # All actions are handled in closeEvent()
         self.close()
     
-    def actionSimulate(self):
+    def actionStartSimulation(self):
         """Start the simulation."""
         self.wsim_progess_bar.setRange(0, 0)
-        
+
         n_rounds = self.wn_rounds.value()
         n_steps = self.wn_steps.value()
         def updateProgressBar(round, step):
@@ -603,8 +623,22 @@ class MainWindow(QMainWindow):
             self.wsim_progess_bar.setValue(round * n_steps + step)
         self.simulation.stepChanged.connect(updateProgressBar)
 
+        # Change start button to stop
+        self.wsim_button.setIcon(QIcon(str(package.dir / "data/stop.svg")))
+        self.wsim_button.setText(" Stop")
+        self.wsim_button.clicked.disconnect(self.actionStartSimulation)
+        self.wsim_button.clicked.connect(self.actionStopSimulation)
+
         args = [str(self.executable)] + self.cliArgs()
         self.simulation.start(args)
+    
+    def actionStopSimulation(self):
+        if not self.promptStopSimulation():
+            return
+        
+        self.simulation.terminate()
+        self.wsim_button.setEnabled(False)  # Disable the button until the simulation is stopped
+        self.wsim_progess_bar.setRange(0, 0)
     
     # Properties =======================================================================================================
     def actionShowPrefsExePicker(self):
@@ -634,6 +668,15 @@ class MainWindow(QMainWindow):
 
     # Events ===========================================================================================================
     def closeEvent(self, event):
+        if self.simulation.running:
+            if not self.promptStopSimulation():
+                event.ignore()
+                return
+
+            # Teminate and process events so onSimulationFinished cleans up
+            self.simulation.terminate()
+            QApplication.instance().processEvents()
+
         if self.modelChanged():
             if not self.promptSaveChanges():
                 # Model changed and user cancelled during prompt
@@ -648,9 +691,23 @@ class MainWindow(QMainWindow):
 
         event.accept()
 
-    def onSimulationCompleted(self, result):
-        if result != 0:
-            raise RuntimeError("The simulation completed with errors")
+    def onSimulationFinished(self, returncode):
+        if returncode != 0:
+            if not self.simulation.terminate_flag:
+                raise RuntimeError("The simulation completed with errors")
+        
+            # Clean directory
+            for file in self.output_dir.rglob("*"):
+                file.unlink()
+        
+        self.wsim_progess_bar.setRange(0, 1)
+        self.wsim_progess_bar.reset()
+
+        self.wsim_button.setEnabled(True)
+        self.wsim_button.setText(" Simulate")
+        self.wsim_button.setIcon(QIcon(str(package.dir / "data/play.svg")))
+        self.wsim_button.clicked.disconnect(self.actionStopSimulation)
+        self.wsim_button.clicked.connect(self.actionStartSimulation)
 
     # Exception handling ===============================================================================================
     def excepthook(self, etype, value, tb):

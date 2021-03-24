@@ -17,15 +17,16 @@ class Simulation(QObject):
     re_step = re.compile(r"  step +(\d+)\/\d+")
     re_separators = re.compile(r"[\r\n]+")
 
-    def __init__(self, poll_interval=1):
+    def __init__(self):
         super().__init__()
-        self.poll_interval = poll_interval
         self.process = None
 
         self.current_round = None
         self.current_step = None
 
         self.return_code = None
+        self.terminate_flag = False
+        """Flag that is set if the simulation was terminated manually."""
 
     def start(self, cli_args):
         self.process = Popen(
@@ -35,6 +36,19 @@ class Simulation(QObject):
             text=True
         )
         Thread(target=self.poll).start()
+
+    def terminate(self):
+        """Terminate the process if it's running.
+        This function sets self.terminate_flag if the process was running and so was terminated.
+        """
+        if self.running:
+            self.terminate_flag = True
+            self.process.terminate()
+
+    @property
+    def running(self):
+        """Return True if the simulation is currently in progress."""
+        return self.process is not None and self.return_code is None
 
     def poll(self):
         """Poll the process and process stdout. This function is run automatically in a thread after start()."""
@@ -71,5 +85,3 @@ class Simulation(QObject):
                 self.return_code = return_code
                 self.completed.emit(return_code)
                 return
-            
-            sleep(self.poll_interval)
