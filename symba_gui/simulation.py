@@ -38,9 +38,11 @@ class Simulation(QObject):
 
     def poll(self):
         """Poll the process and process stdout. This function is run automatically in a thread after start()."""
+        stdout = ""
+        
         while True:
             # Blocking if stdout is not closed and empty. poll() runs in a thread.
-            stdout = self.process.stdout.read(10000)
+            stdout += self.process.stdout.read(10000)
             lines = re.split(self.re_separators, stdout)
 
             step = None
@@ -51,11 +53,11 @@ class Simulation(QObject):
                 if step is None:
                     match = re.match(self.re_step, line)
                     if match:
-                        step = int(match[1])
+                        step = int(match[1]) - 1  # CLI adds 1 to step count so they start from 1, not 0
                 else:
                     match = re.match(self.re_round, line)
                     if match:
-                        round = int(match[1])
+                        round = int(match[1]) - 1  # CLI adds 1 to round count so they start from 1, not 0
                         break
             
             if round != self.current_round or step != self.current_step:
