@@ -168,11 +168,11 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
 
-        # Exception catching -------------------------------------------------------------------------------------------
+        # Exception catching
         self.__excepthook__ = sys.excepthook
         sys.excepthook = self.excepthook
         
-        # Settings -----------------------------------------------------------------------------------------------------
+        # Application properties =======================================================================================
         self.app_data_dir = Path(QStandardPaths.standardLocations(QStandardPaths.AppDataLocation)[0])
         """Directory of user-specific application data."""
         self.app_data_dir.mkdir(parents=True, exist_ok=True)
@@ -196,9 +196,9 @@ class MainWindow(QMainWindow):
             with open(self.app_data_dir / "config.json", "w", encoding="utf-8") as f:
                 json.dump(self.config(), f, ensure_ascii=False, indent=4)
 
-        # Simulation data ----------------------------------------------------------------------------------------------
+        # Simulation properties (initialized in self.loadFile or self.loadNewFile)
         self.opened_file = None  # Which file is this instance associated with. Changes with New or Open actions.
-        self.simulated = None  # Whether this simulation has been completed or not (initialized later).
+        self.simulated = None  # Whether this simulation has been completed or not.
         self.saved_simulated = None
         self.saved_model_params = None
 
@@ -209,29 +209,22 @@ class MainWindow(QMainWindow):
         for file in self.output_dir.rglob("*"):
             file.unlink()
 
-        # Contents -----------------------------------------------------------------------------------------------------
+        # Dock widgets =================================================================================================
         w = QWidget()
         ly = QVBoxLayout()
         w.setLayout(ly)
         self.setCentralWidget(w)
 
-        self.wdock_config = QDockWidget("Simulation Properties")
-        self.wdock_config.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
-        self.wdock_config.visibilityChanged.connect(lambda visible: self.action_view_config.setChecked(visible))
-        self.addDockWidget(Qt.LeftDockWidgetArea, self.wdock_config)
-
-        self.wconfig = QWidget()
-        self.wdock_config.setWidget(self.wconfig)
-        lyconfig = QVBoxLayout()
-        lyconfig.setSpacing(px(0.2))
-        self.wconfig.setLayout(lyconfig)
+        # Simulation control -------------------------------------------------------------------------------------------
+        self.wdock_control = QDockWidget("Simulation")
+        self.wdock_control.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
+        self.wdock_control.visibilityChanged.connect(lambda visible: self.action_view_control.setChecked(visible))
+        self.addDockWidget(Qt.LeftDockWidgetArea, self.wdock_control)
         
-        wconfigopts = QWidget()
-        wconfigopts.setContentsMargins(0, 0, 0, 0)
-        lyconfigopts = QFormLayout()
-        lyconfigopts.setContentsMargins(0, 0, 0, 0)
-        wconfigopts.setLayout(lyconfigopts)
-        lyconfig.addWidget(wconfigopts)
+        self.wcontrol = QWidget()
+        self.wdock_control.setWidget(self.wcontrol)
+        lycontrol = QVBoxLayout()
+        self.wcontrol.setLayout(lycontrol)
 
         self.wsimulate_button = QPushButton(" Simulate")
         self.wsimulate_button.setIcon(QIcon(str(package.dir / "data/play.svg")))
@@ -242,63 +235,74 @@ class MainWindow(QMainWindow):
         self.wsimulate_button.setIconSize(min_icon_size)
         self.wsimulate_button.setFixedWidth(px(1.561))
         self.wsimulate_button.clicked.connect(self.actionSimulate)
-        lyconfig.addWidget(self.wsimulate_button)
-        lyconfig.setAlignment(self.wsimulate_button, Qt.AlignHCenter)
-        lyconfig.addStretch()
+        lycontrol.addWidget(self.wsimulate_button)
+        lycontrol.setAlignment(self.wsimulate_button, Qt.AlignHCenter)
+        lycontrol.addStretch()
 
-        # Simulation options -------------------------------------------------------------------------------------------
+        # Simulation Properties ----------------------------------------------------------------------------------------
+        self.wdock_config = QDockWidget("Simulation Properties")
+        self.wdock_config.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
+        self.wdock_config.visibilityChanged.connect(lambda visible: self.action_view_config.setChecked(visible))
+        self.addDockWidget(Qt.LeftDockWidgetArea, self.wdock_config)
+
+        self.wconfig = QWidget()
+        self.wdock_config.setWidget(self.wconfig)
+        lyconfig = QFormLayout()
+        self.wconfig.setLayout(lyconfig)
+
+        # Model parameters
         self.wn_agents = QSpinBox()
         self.wn_agents.setRange(10, 10000)
-        lyconfigopts.addRow("Number of agents (I):", self.wn_agents)
+        lyconfig.addRow("Number of agents (I):", self.wn_agents)
 
         self.wn_stocks = QSpinBox()
         self.wn_stocks.setRange(1, 100)
-        lyconfigopts.addRow("Number of stocks (J):", self.wn_stocks)
+        lyconfig.addRow("Number of stocks (J):", self.wn_stocks)
 
         self.wn_steps = QSpinBox()
         self.wn_steps.setRange(281, 10000)
-        lyconfigopts.addRow("Number of time steps (T):", self.wn_steps)
+        lyconfig.addRow("Number of time steps (T):", self.wn_steps)
 
         self.wn_rounds = QSpinBox()
         self.wn_rounds.setRange(1, 10000)
-        lyconfigopts.addRow("Number of rounds (S):", self.wn_rounds)
+        lyconfig.addRow("Number of rounds (S):", self.wn_rounds)
 
         self.wrate = QDoubleSpinBox()
         self.wrate.setRange(0, 2)
         self.wrate.setSingleStep(0.01)
-        lyconfigopts.addRow("Rate:", self.wrate)
+        lyconfig.addRow("Rate:", self.wrate)
 
         self.wplot = QCheckBox()
-        lyconfigopts.addRow("Build plots:", self.wplot)
+        lyconfig.addRow("Build plots:", self.wplot)
 
         self.wtype_neb = QComboBox()
         self.wtype_neb.addItems([
             "Classic", "Algorithmic", "Human", "LossAversion", "Positivity", "Negativity", "DelayDiscounting", "Fear",
             "Greed", "LearningRate"
         ])
-        lyconfigopts.addRow("NEB type:", self.wtype_neb)
+        lyconfig.addRow("NEB type:", self.wtype_neb)
 
         self.whp_gesture = QDoubleSpinBox()
         self.whp_gesture.setRange(1, 10)
         self.wrate.setSingleStep(0.01)
-        lyconfigopts.addRow("HP gesture:", self.whp_gesture)
+        lyconfig.addRow("HP gesture:", self.whp_gesture)
 
         self.wliquidation_floor = QSpinBox()
         self.wliquidation_floor.setRange(0, 100)
-        lyconfigopts.addRow("Liquidation floor:", self.wliquidation_floor)
+        lyconfig.addRow("Liquidation floor:", self.wliquidation_floor)
 
         self.wleader_type = QComboBox()
         self.wleader_type.addItems(["Worst", "Best", "Static", "Noise", "NoCluster"])
-        lyconfigopts.addRow("Leader type:", self.wleader_type)
+        lyconfig.addRow("Leader type:", self.wleader_type)
 
         self.wcluster_limit = QSpinBox()
         self.wcluster_limit.setRange(0, 100)
-        lyconfigopts.addRow("Cluster limit:", self.wcluster_limit)
+        lyconfig.addRow("Cluster limit:", self.wcluster_limit)
 
         self.wadditional_args = QLineEdit()
-        lyconfigopts.addRow("Additional arguments:", self.wadditional_args)
+        lyconfig.addRow("Additional arguments:", self.wadditional_args)
 
-        # Plot area ----------------------------------------------------------------------------------------------------
+        # Plot area ====================================================================================================
         self.wplot_area = QTabWidget()
 
         wplot1 = PlotWidget()
@@ -346,7 +350,7 @@ class MainWindow(QMainWindow):
         lyexepicker.addWidget(self.exepicker_combobox)
         lyexepicker.addWidget(exepicker_button)
 
-        # Menu bar -----------------------------------------------------------------------------------------------------
+        # Menu bar =====================================================================================================
         menu_bar = self.menuBar()
 
         menu_file = menu_bar.addMenu("File")
@@ -373,6 +377,10 @@ class MainWindow(QMainWindow):
         action_exit.triggered.connect(self.actionExit)
 
         menu_view = menu_bar.addMenu("View")
+        self.action_view_control = menu_view.addAction("Simulation")
+        self.action_view_control.setCheckable(True)
+        self.action_view_control.setChecked(True)
+        self.action_view_control.triggered.connect(lambda checked: self.wdock_control.setVisible(checked))
         self.action_view_config = menu_view.addAction("Simulation Properties")
         self.action_view_config.setCheckable(True)
         self.action_view_config.setChecked(True)
@@ -382,7 +390,7 @@ class MainWindow(QMainWindow):
         self.action_view_exepicker.setChecked(False)
         self.action_view_exepicker.triggered.connect(lambda checked: self.wdock_exepicker.setVisible(checked))
 
-        # --------------------------------------------------------------------------------------------------------------
+        # ==============================================================================================================
         self.loadNewFile()
 
     def modelChanged(self):
