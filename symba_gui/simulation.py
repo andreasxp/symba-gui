@@ -17,18 +17,19 @@ class Simulation(QObject):
     re_step = re.compile(r"  step +(\d+)\/\d+")
     re_separators = re.compile(r"[\r\n]+")
 
-    def __init__(self, cli_args, poll_interval=1):
+    def __init__(self, poll_interval=1):
         super().__init__()
-        self.cli_args = cli_args
         self.poll_interval = poll_interval
         self.process = None
 
         self.current_round = None
         self.current_step = None
 
-    def start(self):
+        self.return_code = None
+
+    def start(self, cli_args):
         self.process = Popen(
-            self.cli_args,
+            cli_args,
             stdout=PIPE,
             stderr=DEVNULL,
             text=True
@@ -36,6 +37,7 @@ class Simulation(QObject):
         Thread(target=self.poll).start()
 
     def poll(self):
+        """Poll the process and process stdout. This function is run automatically in a thread after start()."""
         while True:
             # Blocking if stdout is not closed and empty. poll() runs in a thread.
             stdout = self.process.stdout.read(10000)
@@ -61,10 +63,11 @@ class Simulation(QObject):
                 self.current_step = step
                 self.stepChanged.emit(round, step)
             
-            ret = self.process.poll()
-            if ret is not None:
+            return_code = self.process.poll()
+            if return_code is not None:
                 # Finish polling
-                self.completed.emit(ret)
+                self.return_code = return_code
+                self.completed.emit(return_code)
                 return
             
             sleep(self.poll_interval)

@@ -198,8 +198,8 @@ class MainWindow(QMainWindow):
 
         # Simulation properties (initialized in self.loadFile or self.loadNewFile)
         self.opened_file = None  # Which file is this instance associated with. Changes with New or Open actions.
-        self.simulated = None  # Whether this simulation has been completed or not.
-        self.saved_simulated = None
+        self.simulation = None
+        self.saved_return_code = None
         self.saved_model_params = None
 
         self.output_dir = self.app_data_dir / "instances" / str(os.getpid())
@@ -395,7 +395,7 @@ class MainWindow(QMainWindow):
 
     def modelChanged(self):
         """Return True if the model configuration/simulation is different from when the file was first opened."""
-        return self.saved_simulated != self.simulated or self.saved_model_params != self.modelParams()
+        return self.saved_return_code != self.simulation.return_code or self.saved_model_params != self.modelParams()
 
     def modelParams(self):
         """Generate a dict of simulation parameters. Dict keys are long CLI parameters without --.
@@ -459,8 +459,11 @@ class MainWindow(QMainWindow):
     
     def loadNewFile(self):
         self.opened_file = None
-        self.simulated = False
-        self.saved_simulated = self.simulated  # For comparison for "save changes" dialog
+        self.simulation = Simulation()
+        self.simulation.stepChanged.connect(lambda round, step: print(f"{round}: {step}"))
+        self.simulation.completed.connect(self.onSimulationCompleted)
+
+        self.saved_return_code = None  # For comparison for "save changes" dialog
 
         self.wn_agents.setValue(500)
         self.wn_stocks.setValue(1)
@@ -479,7 +482,7 @@ class MainWindow(QMainWindow):
 
     def saveFile(self, path):
         """Save current model to zip."""
-        if not self.simulated:
+        if self.simulation.return_code != 0:
             # If not simulated, just write the model parameters.
             with open(self.output_dir / "ModelParameters.json", "w", encoding="utf-8") as f:
                 json.dump(self.modelParams(), f, ensure_ascii=False, indent=4)
@@ -490,7 +493,7 @@ class MainWindow(QMainWindow):
         
         self.opened_file = path
         # Update saved_ values
-        self.saved_simulated = self.simulated
+        self.saved_return_code = self.simulation.return_code
         self.saved_model_params = self.modelParams()
 
     # Actions ==========================================================================================================
@@ -583,13 +586,8 @@ class MainWindow(QMainWindow):
     
     def actionSimulate(self):
         """Start the simulation."""
-        args = self.cliArgs()
-        print([str(self.executable)] + args)
-
-        self.simulation = Simulation([str(self.executable)] + args)
-        self.simulation.stepChanged.connect(lambda round, step: print(f"{round}: {step}"))
-        self.simulation.completed.connect(self.onSimulationCompleted)
-        self.simulation.start()
+        args = [str(self.executable)] + self.cliArgs()
+        self.simulation.start(args)
     
     # Properties =======================================================================================================
     def actionShowPrefsExePicker(self):
