@@ -29,7 +29,7 @@ def inches_to_pixels(value: Union[int, float, QPoint, QPointF, QSize, QSizeF, QR
             value.bottomRight() * dpi()
         )
 
-    return value * dpi()
+    return round(value * dpi())
 
 
 def pixels_to_inches(value):

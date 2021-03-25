@@ -6,15 +6,14 @@ import shlex
 import shutil
 from subprocess import Popen
 from pathlib import Path
-from copy import deepcopy
 from zipfile import ZipFile
 
-from PySide2.QtCore import Qt, QStandardPaths, QDir, QSize
+from PySide2.QtCore import Qt, QStandardPaths, QSize
 from PySide2.QtGui import QIcon
 from PySide2.QtWidgets import (
-    QApplication, QMainWindow, QMenu, QWidget, QLineEdit, QVBoxLayout, QDockWidget, QFormLayout, QGridLayout,
-    QFileDialog, QDialog, QCheckBox, QMessageBox, QListWidget, QDialogButtonBox, QFrame, QTextEdit, QComboBox,
-    QHBoxLayout, QPushButton, QSpinBox, QDoubleSpinBox, QStyleFactory, QTabWidget, QStyle, QProgressBar
+    QApplication, QMainWindow, QWidget, QLineEdit, QVBoxLayout, QDockWidget, QFormLayout, QGridLayout,
+    QFileDialog, QCheckBox, QMessageBox, QDialogButtonBox, QTextEdit, QComboBox, QSizePolicy, QStackedWidget,
+    QHBoxLayout, QPushButton, QSpinBox, QDoubleSpinBox, QStyleFactory, QTabWidget, QProgressBar
 )
 from PySide2.QtSvg import QSvgWidget
 from pyqtgraph import PlotWidget, PlotItem, BarGraphItem
@@ -22,146 +21,11 @@ from pyqtgraph import PlotWidget, PlotItem, BarGraphItem
 import symba_gui as package
 from .cli import parse_args
 from .dpi import inches_to_pixels as px
-from .widgets import PathEdit
+from .widgets import PathEdit, PushLabel, TabWidget
 from .simulation import Simulation
-
-
-class PrefsExePicker(QDialog):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle("Preferences: Symba Executables")
-
-        self.executables = None
-        self.user_choice = None
-        self.builtin = None
-
-        self.wpath_list = QListWidget()
-        self.wpath_list.setSortingEnabled(True)
-        self.wpath_list.setAlternatingRowColors(True)
-        self.wpath_list.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.wpath_list.currentTextChanged.connect(self.currentTextChangedEvent)
-        self.wpath_list.customContextMenuRequested.connect(self.actionShowContextMenu)
-
-        self.wis_default = QCheckBox("Make this executable default for new simulations")
-        self.wis_default.setEnabled(False)
-        self.wis_default.stateChanged.connect(self.checkboxStateChangedEvent)
-
-        button_box = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Cancel)
-        self.wbutton_ok = button_box.button(QDialogButtonBox.Save)
-        self.wbutton_cancel = button_box.button(QDialogButtonBox.Cancel)
-
-        self.wbutton_ok.clicked.connect(self.accept)
-        self.wbutton_cancel.clicked.connect(self.reject)
-
-        line = QFrame()
-        line.setFrameShape(QFrame.HLine)
-        line.setFrameShadow(QFrame.Sunken)
-
-        ly = QVBoxLayout()
-        self.setLayout(ly)
-
-        ly.addWidget(self.wpath_list)
-        ly.addWidget(self.wis_default)
-        ly.addWidget(line)
-        ly.addWidget(button_box)
-    
-    def actionShowContextMenu(self, pos):
-        global_pos = self.wpath_list.mapToGlobal(pos)
-        item = self.wpath_list.itemAt(pos)
-
-        if item is None:
-            menu = QMenu()
-            action_add_path = menu.addAction("Add Path...")
-
-            def getPath():
-                path = QFileDialog.getOpenFileName(
-                    self, "Choose an executable for running the simulation", QDir.homePath(), "Executables (*.exe)"
-                )[0]
-                self.addPath(path)
-
-            action_add_path.triggered.connect(getPath)
-
-            menu.exec_(global_pos)
-        elif item.text() == self.builtin:
-            pass
-        else:
-            menu = QMenu()
-            action_add_path = menu.addAction("Delete")
-            action_add_path.triggered.connect(lambda: self.removePath(item.text()))
-
-            menu.exec_(global_pos)
-
-    def currentTextChangedEvent(self, text):
-        self.wis_default.setChecked(text == self.user_choice)
-        self.wis_default.setDisabled(text == self.builtin)
-
-    def checkboxStateChangedEvent(self, checked):
-        if checked == (self.user_choice == self.wpath_list.currentItem().text()):
-            # Everything as it should be
-            return
-
-        if checked:
-            self.user_choice = self.wpath_list.currentItem().text()
-        else:
-            self.user_choice = self.builtin
-
-    def setData(self, executables, user_choice, builtin):
-        """Set current data into the dialog."""
-        self.executables = [str(path) for path in executables]
-        self.user_choice = str(user_choice)
-        self.builtin = str(builtin)
-
-        self.original_executables = self.executables
-        self.original_user_choice = self.user_choice
-
-        self.wpath_list.clear()
-        for path in self.executables:
-            self.wpath_list.addItem(path)
-
-    def addPath(self, path):
-        if path not in self.executables:
-            # No such path yet
-            self.executables.append(path)
-            self.wpath_list.addItem(path)
-        
-        item = self.wpath_list.findItems(path, Qt.MatchExactly)[0]
-        self.wpath_list.setCurrentItem(item)
-    
-    def removePath(self, path):
-        items = self.wpath_list.findItems(path, Qt.MatchExactly)
-        if len(items) == 0:
-            return
-
-        item = self.wpath_list.findItems(path, Qt.MatchExactly)[0]
-        self.wpath_list.takeItem(self.wpath_list.row(item))
-        self.executables.remove(item.text())
-        
-        if self.user_choice == path:
-            self.user_choice = self.builtin
-
-    def data(self):
-        return [Path(s) for s in self.executables], Path(self.user_choice)
-
-    def closeEvent(self, event):
-        if self.executables != self.original_executables or self.user_choice != self.original_user_choice:
-            msg = QMessageBox(self)
-            msg.setWindowTitle("Preferences: Symba Executables")
-            msg.setText("Save changes to the executable list?")
-            msg.setIcon(QMessageBox.Question)
-            msg.setStandardButtons(QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel)
-            msg.setDefaultButton(QMessageBox.Cancel)
-            ret = msg.exec_()
-
-            if ret == QMessageBox.Save:
-                self.accept()
-                event.accept()
-            elif ret == QMessageBox.Discard:
-                self.reject()
-                event.accept()
-            else:
-                event.ignore()
-        else:
-            event.accept()
+from .prefs_exepicker import PrefsExePicker
+from .chart_editor import ChartEditor
+from .chart import Chart
 
 
 class MainWindow(QMainWindow):
@@ -234,11 +98,7 @@ class MainWindow(QMainWindow):
 
         self.wsim_button = QPushButton(" Simulate")
         self.wsim_button.setIcon(QIcon(str(package.dir / "data/play.svg")))
-        min_icon_size = QSize(
-            self.wsim_button.sizeHint().height() * 0.5,
-            self.wsim_button.sizeHint().height() * 0.5
-        )
-        self.wsim_button.setIconSize(min_icon_size)
+        self.wsim_button.setIconSize(QSize(px(0.125), px(0.125)))
         self.wsim_button.clicked.connect(self.actionStartSimulation)
         lycontainer.addWidget(self.wsim_button)
 
@@ -310,32 +170,7 @@ class MainWindow(QMainWindow):
         self.wadditional_args = QLineEdit()
         lyconfig.addRow("Additional arguments:", self.wadditional_args)
 
-        # Plot area ====================================================================================================
-        self.wplot_area = QTabWidget()
-
-        wplot1 = PlotWidget()
-        y1 = [5, 5, 7, 10, 3, 8, 9, 1, 6, 2]
-        x = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-        bargraph = BarGraphItem(x=x, height=y1, width=0.6)
-        wplot1.addItem(bargraph)
-
-        self.wplot_area.addTab(wplot1, "test")
-        self.wplot_area.addTab(QWidget(), "test2")
-
-        self.wsim_placeholder = QWidget()
-        self.wsim_placeholder.setMinimumSize(px(8.695), px(6.522))
-        wsim_placeholder_svg = QSvgWidget(str(package.dir / "data/sim_placeholder.svg"))
-        wsim_placeholder_svg.setFixedSize(wsim_placeholder_svg.renderer().defaultSize())
-
-        lysim_placeholder = QGridLayout()
-        lysim_placeholder.setRowStretch(0, 10)
-        lysim_placeholder.setRowStretch(2, 15)
-        lysim_placeholder.setColumnStretch(0, 1)
-        lysim_placeholder.setColumnStretch(2, 1)
-        lysim_placeholder.addWidget(wsim_placeholder_svg, 1, 1)
-        self.wsim_placeholder.setLayout(lysim_placeholder)
-        self.setCentralWidget(self.wplot_area)
-
+        # Executable picker --------------------------------------------------------------------------------------------
         self.wdock_exepicker = QDockWidget("Executable Selection")
         self.wdock_exepicker.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
         self.wdock_exepicker.visibilityChanged.connect(lambda visible: self.action_view_exepicker.setChecked(visible))
@@ -357,6 +192,79 @@ class MainWindow(QMainWindow):
         
         lyexepicker.addWidget(self.exepicker_combobox)
         lyexepicker.addWidget(exepicker_button)
+
+        # Central area =================================================================================================
+        self.wcentral_widget = QStackedWidget()
+        self.setCentralWidget(self.wcentral_widget)
+
+        # No simulation placeholder ------------------------------------------------------------------------------------
+        self.wno_sim_placeholder = QWidget()
+        self.wno_sim_placeholder.setMinimumSize(px(8.695), px(6.522))
+        wno_sim_placeholder_svg = QSvgWidget(str(package.dir / "data/no_sim_placeholder.svg"))
+        wno_sim_placeholder_svg.setFixedSize(wno_sim_placeholder_svg.renderer().defaultSize())
+
+        lyno_sim_placeholder = QGridLayout()
+        lyno_sim_placeholder.setRowStretch(0, 10)
+        lyno_sim_placeholder.setRowStretch(2, 15)
+        lyno_sim_placeholder.setColumnStretch(0, 1)
+        lyno_sim_placeholder.setColumnStretch(2, 1)
+        lyno_sim_placeholder.addWidget(wno_sim_placeholder_svg, 1, 1)
+        self.wno_sim_placeholder.setLayout(lyno_sim_placeholder)
+
+        self.wcentral_widget.addWidget(self.wno_sim_placeholder)
+
+        # No chart placeholder -----------------------------------------------------------------------------------------
+        self.wno_chart_placeholder = QWidget()
+        self.wno_chart_placeholder.setMinimumSize(px(8.695), px(6.522))
+        lyno_chart_placeholder = QGridLayout()
+        self.wno_chart_placeholder.setLayout(lyno_chart_placeholder)
+        
+        lyno_chart_placeholder.setSpacing(px(0.2))
+        lyno_chart_placeholder.setRowStretch(0, 10)
+        lyno_chart_placeholder.setRowStretch(3, 15)
+        lyno_chart_placeholder.setColumnStretch(0, 1)
+        lyno_chart_placeholder.setColumnStretch(2, 1)
+
+        wno_chart_placeholder_svg = QSvgWidget(str(package.dir / "data/no_chart_placeholder.svg"))
+        wno_chart_placeholder_svg.setFixedSize(wno_chart_placeholder_svg.renderer().defaultSize())
+        lyno_chart_placeholder.addWidget(wno_chart_placeholder_svg, 1, 1)
+
+        wno_chart_placeholder_add_chart_button = QPushButton(" Add Chart")
+        wno_chart_placeholder_add_chart_button.setIcon(QIcon(str(package.dir / "data/plus.svg")))
+        wno_chart_placeholder_add_chart_button.setIconSize(QSize(px(0.125), px(0.125)))
+        wno_chart_placeholder_add_chart_button.clicked.connect(self.actionAddChart)
+        lyno_chart_placeholder.addWidget(wno_chart_placeholder_add_chart_button, 2, 1, Qt.AlignHCenter)
+
+        self.wcentral_widget.addWidget(self.wno_chart_placeholder)
+
+        # Chart area ---------------------------------------------------------------------------------------------------
+        self.wcharts = QTabWidget()
+
+        wcontainer = QWidget()
+        wcontainer.setContentsMargins(0, 0, px(0.01), px(0.01))
+        lycontainer = QHBoxLayout()
+        lycontainer.setContentsMargins(0, 0, 0, 0)
+        wcontainer.setLayout(lycontainer)
+
+        self.wadd_chart_button = QPushButton()
+        self.wadd_chart_button.setIcon(QIcon(str(package.dir / "data/plus.svg")))
+        self.wadd_chart_button.setFixedSize(px(0.21), px(0.21))
+        self.wadd_chart_button.setIconSize(QSize(px(0.125), px(0.125)))
+        self.wadd_chart_button.clicked.connect(self.actionAddChart)
+        lycontainer.addWidget(self.wadd_chart_button)
+
+        self.wcharts.setCornerWidget(wcontainer)
+
+        wplot1 = PlotWidget()
+        y1 = [5, 5, 7, 10, 3, 8, 9, 1, 6, 2]
+        x = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+        bargraph = BarGraphItem(x=x, height=y1, width=0.6)
+        wplot1.addItem(bargraph)
+
+        self.wcharts.addTab(wplot1, "test")
+        self.wcharts.addTab(QWidget(), "test2")
+        self.wcentral_widget.addWidget(self.wcharts)
+        self.wcentral_widget.setCurrentIndex(2)
 
         # Menu bar =====================================================================================================
         menu_bar = self.menuBar()
@@ -516,7 +424,7 @@ class MainWindow(QMainWindow):
         prompt.setIcon(QMessageBox.Warning)
 
         if self.opened_file is None:
-            prompt.setText(f"Save changes to this model before closing?")
+            prompt.setText("Save changes to this model before closing?")
         else:
             prompt.setText(f"Save changes to \"{self.opened_file.name}\" before closing?")
 
@@ -640,6 +548,28 @@ class MainWindow(QMainWindow):
         self.wsim_button.setEnabled(False)  # Disable the button until the simulation is stopped
         self.wsim_progess_bar.setRange(0, 0)
     
+    def actionAddChart(self):
+        dialog = ChartEditor(self)
+
+        def finishedEvent(result):
+            if not result:
+                return
+
+            title = dialog.title
+            code = dialog.code
+            chart = Chart(code)
+            
+            self.charts = {}
+            self.charts[title] = chart
+
+            self.wcharts.addTab(chart.func(), title)
+
+        dialog.finished.connect(finishedEvent)
+
+        dialog.show()
+        dialog.raise_()
+        dialog.activateWindow()
+
     # Properties =======================================================================================================
     def actionShowPrefsExePicker(self):
         """Show preferences dialog for the execuatable picker."""
@@ -699,13 +629,22 @@ class MainWindow(QMainWindow):
             # Clean directory
             for file in self.output_dir.rglob("*"):
                 file.unlink()
+            
+            self.wsim_button.setText(" Simulate")
+            self.wsim_button.setIcon(QIcon(str(package.dir / "data/play.svg")))
+        else:
+            if self.wcharts.count() > 0:
+                self.wcentral_widget.setCurrentWidget(self.wcharts)
+            else:
+                self.wcentral_widget.setCurrentWidget(self.wno_chart_placeholder)
+            
+            self.wsim_button.setText(" Re-simulate")
+            self.wsim_button.setIcon(QIcon(str(package.dir / "data/restart.svg")))
         
         self.wsim_progess_bar.setRange(0, 1)
         self.wsim_progess_bar.reset()
 
         self.wsim_button.setEnabled(True)
-        self.wsim_button.setText(" Simulate")
-        self.wsim_button.setIcon(QIcon(str(package.dir / "data/play.svg")))
         self.wsim_button.clicked.disconnect(self.actionStopSimulation)
         self.wsim_button.clicked.connect(self.actionStartSimulation)
 
