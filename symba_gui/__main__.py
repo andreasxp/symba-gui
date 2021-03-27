@@ -18,11 +18,11 @@ from PySide2.QtWidgets import (
 from PySide2.QtSvg import QSvgWidget
 
 import symba_gui as package
-from .cli import parse_args
-from .dpi import inches_to_pixels as px
-from .simulation import Simulation
-from .prefs_exepicker import PrefsExePicker
-from .chart import ChartEditor, Chart
+from symba_gui.cli import parse_args
+from symba_gui.dpi import inches_to_pixels as px
+from symba_gui.simulation import Simulation
+from symba_gui.prefs_exepicker import PrefsExePicker
+from symba_gui.chart import ChartEditor, Chart
 
 
 class MainWindow(QMainWindow):
