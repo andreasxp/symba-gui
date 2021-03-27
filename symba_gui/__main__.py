@@ -63,7 +63,7 @@ class MainWindow(QMainWindow):
 
         # Simulation properties (initialized in self.loadFile or self.loadNewFile)
         self.opened_file = None  # Which file is this instance associated with. Changes with New or Open actions.
-        self.simulation = None
+        self.simulation = Simulation()
         self.saved_model_params = None
         self._unsaved_changes = False
 
@@ -390,8 +390,6 @@ class MainWindow(QMainWindow):
     def loadFile(self, path):
         """Load file from zip, without prompting user for changes."""
         self.opened_file = path
-        self.simulation = Simulation()
-        self.simulation.completed.connect(self.onSimulationFinished)
 
         # Clean directory
         shutil.rmtree(self.output_dir)
@@ -616,6 +614,10 @@ class MainWindow(QMainWindow):
         # Remove existing charts and switch to the placeholder
         self.wcharts.clear()
         self.wcentral_widget.setCurrentWidget(self.wno_sim_placeholder)
+
+        # Create Simulation object
+        self.simulation = Simulation()
+        self.simulation.completed.connect(self.onSimulationFinished)
 
         # Configure progress bar
         self.wsim_progess_bar.setRange(0, 0)
