@@ -1,7 +1,6 @@
 import re
 from threading import Thread
-from time import sleep
-from subprocess import Popen, PIPE, DEVNULL
+from subprocess import Popen, PIPE, DEVNULL, CREATE_NO_WINDOW
 from PySide2.QtCore import QObject, Signal
 
 
@@ -33,7 +32,8 @@ class Simulation(QObject):
             cli_args,
             stdout=PIPE,
             stderr=DEVNULL,
-            text=True
+            text=True,
+            creationflags=CREATE_NO_WINDOW
         )
         Thread(target=self.poll).start()
 
