@@ -37,7 +37,7 @@ class MainWindow(QMainWindow):
         sys.excepthook = self.excepthook
         
         # Application properties =======================================================================================
-        self.app_data_dir = Path(QStandardPaths.standardLocations(QStandardPaths.AppDataLocation)[0])
+        self.app_data_dir = Path(QStandardPaths.writableLocation(QStandardPaths.AppDataLocation))
         """Directory of user-specific application data."""
         self.app_data_dir.mkdir(parents=True, exist_ok=True)
         
@@ -52,7 +52,7 @@ class MainWindow(QMainWindow):
             self.executables = [Path(s) for s in config["executables"]["paths"]]
         else:
             # If config file does not exist, create from defaults and write it
-            self.save_dir = Path(QStandardPaths.standardLocations(QStandardPaths.DocumentsLocation)[0])
+            self.save_dir = Path(QStandardPaths.writableLocation(QStandardPaths.DocumentsLocation))
             self.builtin_executable = package.dir / "bin" / "symba.exe"
             self.executable = self.builtin_executable
             self.executables = [self.builtin_executable]
@@ -66,7 +66,8 @@ class MainWindow(QMainWindow):
         self.saved_return_code = None
         self.saved_model_params = None
 
-        self.output_dir = self.app_data_dir / "instances" / str(os.getpid())
+        temp_dir = Path(QStandardPaths.writableLocation(QStandardPaths.TempLocation))
+        self.output_dir = temp_dir / "symba_gui" / "instances" / str(os.getpid())
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
         # Clean data from previous launches
