@@ -789,6 +789,7 @@ def main():
     app = QApplication(sys.argv)
     app.setApplicationName("symba_gui")
     app.setApplicationDisplayName("Symba Designer")
+    app.setWindowIcon(QIcon(str(package.dir / "data/icon.ico")))
     app.setStyle(QStyleFactory.create("fusion"))
     args = parse_args()
 
