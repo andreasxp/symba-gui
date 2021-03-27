@@ -9,7 +9,7 @@ from pathlib import Path
 from zipfile import ZipFile
 
 from PySide2.QtCore import Qt, QStandardPaths, QSize
-from PySide2.QtGui import QIcon
+from PySide2.QtGui import QIcon, QFontDatabase
 from PySide2.QtWidgets import (
     QApplication, QMainWindow, QWidget, QLineEdit, QVBoxLayout, QDockWidget, QFormLayout, QGridLayout,
     QFileDialog, QCheckBox, QMessageBox, QDialogButtonBox, QTextEdit, QComboBox, QSizePolicy, QStackedWidget,
@@ -21,11 +21,9 @@ from pyqtgraph import PlotWidget, PlotItem, BarGraphItem
 import symba_gui as package
 from .cli import parse_args
 from .dpi import inches_to_pixels as px
-from .widgets import PathEdit, PushLabel, TabWidget
 from .simulation import Simulation
 from .prefs_exepicker import PrefsExePicker
-from .chart_editor import ChartEditor
-from .chart import Chart
+from .chart import ChartEditor, Chart
 
 
 class MainWindow(QMainWindow):
@@ -35,6 +33,10 @@ class MainWindow(QMainWindow):
         # Exception catching
         self.__excepthook__ = sys.excepthook
         sys.excepthook = self.excepthook
+
+        # Loading fonts ================================================================================================
+        for path in (package.dir / "data" / "fonts").glob("*"):
+            QFontDatabase.addApplicationFont(str(path))
         
         # Application properties =======================================================================================
         self.app_data_dir = Path(QStandardPaths.writableLocation(QStandardPaths.AppDataLocation))
@@ -69,6 +71,7 @@ class MainWindow(QMainWindow):
         temp_dir = Path(QStandardPaths.writableLocation(QStandardPaths.TempLocation))
         self.output_dir = temp_dir / "symba_gui" / "instances" / str(os.getpid())
         self.output_dir.mkdir(parents=True, exist_ok=True)
+        self.output_chart_dir = self.output_dir / "Charts"  # Will be created when a chart is added
 
         # Clean data from previous launches
         for file in self.output_dir.rglob("*"):
@@ -554,16 +557,18 @@ class MainWindow(QMainWindow):
 
         def finishedEvent(result):
             if not result:
-                return
+                return  # User cancelled
+
+            self.output_chart_dir.mkdir(parents=True, exist_ok=True)
 
             title = dialog.title
             code = dialog.code
-            chart = Chart(code)
-            
-            self.charts = {}
-            self.charts[title] = chart
+            path = self.output_chart_dir / (title + ".py")
 
-            self.wcharts.addTab(chart.func(), title)
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(code)
+
+            self.wcharts.addTab(Chart(path), title)
 
         dialog.finished.connect(finishedEvent)
 
