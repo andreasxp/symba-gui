@@ -11,12 +11,11 @@ from zipfile import ZipFile
 from PySide2.QtCore import Qt, QStandardPaths, QSize
 from PySide2.QtGui import QIcon, QFontDatabase
 from PySide2.QtWidgets import (
-    QApplication, QMainWindow, QWidget, QLineEdit, QVBoxLayout, QDockWidget, QFormLayout, QGridLayout,
-    QFileDialog, QCheckBox, QMessageBox, QDialogButtonBox, QTextEdit, QComboBox, QSizePolicy, QStackedWidget,
-    QHBoxLayout, QPushButton, QSpinBox, QDoubleSpinBox, QStyleFactory, QTabWidget, QProgressBar
+    QApplication, QMainWindow, QWidget, QLineEdit, QVBoxLayout, QDockWidget, QFormLayout, QGridLayout, QFileDialog,
+    QCheckBox, QMessageBox, QTextEdit, QComboBox, QStackedWidget, QHBoxLayout, QPushButton, QSpinBox, QDoubleSpinBox,
+    QStyleFactory, QTabWidget, QProgressBar
 )
 from PySide2.QtSvg import QSvgWidget
-from pyqtgraph import PlotWidget, PlotItem, BarGraphItem
 
 import symba_gui as package
 from .cli import parse_args

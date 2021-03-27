@@ -1,4 +1,4 @@
-from argparse import ArgumentParser, Action
+from argparse import ArgumentParser
 
 
 def window_pos(wp_str):

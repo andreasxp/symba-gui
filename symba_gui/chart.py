@@ -1,30 +1,7 @@
-import sys
-import os
-import traceback
-import json
-import shlex
-import shutil
-from subprocess import Popen
-from pathlib import Path
-from copy import deepcopy
-from zipfile import ZipFile
 import importlib.util
 
-from PySide2.QtCore import Qt, QStandardPaths, QDir, QSize
-from PySide2.QtGui import QIcon, QFont, QFontMetricsF
-from PySide2.QtWidgets import (
-    QApplication, QMainWindow, QMenu, QWidget, QLineEdit, QVBoxLayout, QDockWidget, QFormLayout, QGridLayout,
-    QDialog, QCheckBox, QMessageBox, QListWidget, QDialogButtonBox, QFrame, QTextEdit, QComboBox,
-    QHBoxLayout, QPushButton, QSpinBox, QDoubleSpinBox, QStyleFactory, QTabWidget, QStyle, QProgressBar, QLabel
-)
-from PySide2.QtSvg import QSvgWidget
-from pyqtgraph import PlotWidget, PlotItem, BarGraphItem
-
-import symba_gui as package
-from .cli import parse_args
-from .dpi import inches_to_pixels as px
-from .widgets import PathEdit
-from .simulation import Simulation
+from PySide2.QtGui import QFont, QFontMetricsF
+from PySide2.QtWidgets import QWidget, QDialog, QDialogButtonBox, QLabel, QLineEdit, QTextEdit, QHBoxLayout, QVBoxLayout
 
 
 class ChartEditor(QDialog):
