@@ -65,8 +65,8 @@ class MainWindow(QMainWindow):
         # Simulation properties (initialized in self.loadFile or self.loadNewFile)
         self.opened_file = None  # Which file is this instance associated with. Changes with New or Open actions.
         self.simulation = None
-        self.saved_return_code = None
         self.saved_model_params = None
+        self._unsaved_changes = False
 
         temp_dir = Path(QStandardPaths.writableLocation(QStandardPaths.TempLocation))
         self.output_dir = temp_dir / "symba_gui" / "instances" / str(os.getpid())
@@ -321,9 +321,16 @@ class MainWindow(QMainWindow):
         # ==============================================================================================================
         self.loadNewFile()
 
-    def unsavedChanges(self):
-        """Return True if the model configuration/simulation is different from when the file was first opened."""
-        return self.saved_return_code != self.simulation.return_code or self.saved_model_params != self.modelParams()
+    @property
+    def unsaved_changes(self) -> bool:
+        """True if the user has unsaved changes.
+        Depends on whether unsaved_changes was saved manually and whetner model parameters were edited.
+        """
+        return self._unsaved_changes or self.saved_model_params != self.modelParams()
+
+    @unsaved_changes.setter
+    def unsaved_changes(self, value: bool):
+        self._unsaved_changes = value
 
     def modelParams(self):
         """Generate a dict of simulation parameters. Dict keys are long CLI parameters without --.
@@ -387,8 +394,6 @@ class MainWindow(QMainWindow):
         self.simulation = Simulation()
         self.simulation.completed.connect(self.onSimulationFinished)
 
-        self.saved_return_code = None  # For comparison for "save changes" dialog
-
         # Clean directory
         shutil.rmtree(self.output_dir)
         self.output_dir.mkdir()
@@ -445,6 +450,7 @@ class MainWindow(QMainWindow):
                 self.wcentral_widget.setCurrentWidget(self.wno_sim_placeholder)
 
         self.saved_model_params = self.modelParams()  # For comparison for "save changes" dialog
+        self.unsaved_changes = False
     
     def loadNewFile(self):
         self.loadFile(None)
@@ -468,8 +474,8 @@ class MainWindow(QMainWindow):
         
         self.opened_file = path
         # Update saved_ values
-        self.saved_return_code = self.simulation.return_code
         self.saved_model_params = self.modelParams()
+        self.unsaved_changes = False
 
     # Actions ==========================================================================================================
     def promptSaveChanges(self) -> bool:
@@ -518,7 +524,7 @@ class MainWindow(QMainWindow):
         return True
 
     def actionNew(self):
-        if self.unsavedChanges():
+        if self.unsaved_changes:
             if not self.promptSaveChanges():
                 # Model changed and user cancelled during prompt
                 return
@@ -546,7 +552,7 @@ class MainWindow(QMainWindow):
             Popen([sys.argv[0]] + cli_args)
 
     def actionOpen(self):
-        if self.unsavedChanges():
+        if self.unsaved_changes:
             if not self.promptSaveChanges():
                 # User cancelled during prompt
                 return
@@ -602,6 +608,8 @@ class MainWindow(QMainWindow):
     
     def actionStartSimulation(self):
         """Start the simulation."""
+        self.unsaved_changes = True
+
         # Clean directory
         shutil.rmtree(self.output_dir)
         self.output_dir.mkdir()
@@ -653,6 +661,7 @@ class MainWindow(QMainWindow):
             with open(path, "w", encoding="utf-8") as f:
                 f.write(code)
 
+            self.unsaved_changes = True
             self.wcharts.addTab(Chart(path), title)
             self.wcharts.setCurrentIndex(self.wcharts.count() - 1)
             self.wcentral_widget.setCurrentWidget(self.wcharts)
@@ -665,11 +674,19 @@ class MainWindow(QMainWindow):
 
     def actionEditCurrentChart(self):
         dialog = self.wcharts.currentWidget().editor()
+
+        # Data on the tab is updated automatically, but we need some other processing also
+        def done():
+            self.unsaved_changes = True
+            self.wcharts.setCurrentWidget(self.wcharts.currentWidget())
+
+        dialog.finished.connect(done)
         dialog.show()
         dialog.raise_()
         dialog.activateWindow()
     
     def actionRemoveCurrentChart(self):
+        self.unsaved_changes = True
         self.wcharts.currentWidget().path.unlink()
         self.wcharts.removeTab(self.wcharts.currentIndex())
 
@@ -713,7 +730,7 @@ class MainWindow(QMainWindow):
             self.simulation.terminate()
             QApplication.instance().processEvents()
 
-        if self.unsavedChanges():
+        if self.unsaved_changes:
             if not self.promptSaveChanges():
                 # Model changed and user cancelled during prompt
                 event.ignore()
