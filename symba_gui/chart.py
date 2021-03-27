@@ -1,7 +1,9 @@
 import importlib.util
 
 from PySide2.QtGui import QFont, QFontMetricsF
-from PySide2.QtWidgets import QWidget, QDialog, QDialogButtonBox, QLabel, QLineEdit, QTextEdit, QHBoxLayout, QVBoxLayout
+from PySide2.QtWidgets import (
+    QWidget, QDialog, QDialogButtonBox, QLabel, QLineEdit, QTextEdit, QHBoxLayout, QVBoxLayout, QFrame
+)
 
 
 class ChartEditor(QDialog):
