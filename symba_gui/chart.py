@@ -14,7 +14,7 @@ from PySide2.QtCore import Qt, QStandardPaths, QDir, QSize
 from PySide2.QtGui import QIcon, QFont, QFontMetricsF
 from PySide2.QtWidgets import (
     QApplication, QMainWindow, QMenu, QWidget, QLineEdit, QVBoxLayout, QDockWidget, QFormLayout, QGridLayout,
-    QFileDialog, QDialog, QCheckBox, QMessageBox, QListWidget, QDialogButtonBox, QFrame, QTextEdit, QComboBox,
+    QDialog, QCheckBox, QMessageBox, QListWidget, QDialogButtonBox, QFrame, QTextEdit, QComboBox,
     QHBoxLayout, QPushButton, QSpinBox, QDoubleSpinBox, QStyleFactory, QTabWidget, QStyle, QProgressBar, QLabel
 )
 from PySide2.QtSvg import QSvgWidget
@@ -89,28 +89,19 @@ class Chart(QWidget):
         super().__init__()
         self.path = path
         self.title = path.stem
+        self.wchart = QWidget()  # Initialized later in reload()
 
         ly = QVBoxLayout()
         self.setLayout(ly)
-        lyheader = QHBoxLayout()
-
-        self.wedit_button = QPushButton("Edit")
-        self.wdelete_button = QPushButton("Delete")
-
-        lyheader.addWidget(QLabel(self.title))
-        lyheader.addWidget(self.wedit_button)
-        lyheader.addWidget(self.wdelete_button)
-
-        self.wchart = QWidget()  # Initialized later in reload()
-
-        ly.addLayout(lyheader)
         ly.addWidget(self.wchart)
+
+        self._editor = None
 
         self.reload()
 
     def reload(self, path=None):
         self.path = path or self.path
-
+        
         self.layout().removeWidget(self.wchart)
 
         # Import the module and call chart() function
@@ -122,26 +113,31 @@ class Chart(QWidget):
         self.layout().addWidget(self.wchart)
 
     def editor(self):
-        """Create and return an editor that is linked to this chart."""
+        """Return an editor that is linked to this chart."""
         with open(self.path, "r", encoding="utf-8") as f:
             code = f.read()
         
-        dialog = ChartEditor(self, self.title, code)
+        if self._editor is None:
+            self._editor = ChartEditor(self)
+
+            def done(result):
+                if not result:
+                    return  # User cancelled
+
+                title = self._editor.title
+                code = self._editor.code
+
+                self.path.unlink()
+                self.path = self.path.parent / (title + ".py")
+
+                with open(self.path, "w", encoding="utf-8") as f:
+                    f.write(code)
+
+                self.reload()
+            
+            self._editor.finished.connect(done)
         
-        def done(result):
-            if not result:
-                return  # User cancelled
-
-            title = dialog.title
-            code = dialog.code
-
-            self.path.unlink()
-            self.path = self.path.parent / (title + ".py")
-
-            with open(self.path, "w", encoding="utf-8") as f:
-                f.write(code)
-
-            self.reload()
+        self._editor.title = self.title
+        self._editor.code = code
         
-        dialog.finished.connect(done)
-        return dialog
+        return self._editor
