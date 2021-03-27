@@ -85,8 +85,9 @@ class ChartEditor(QDialog):
 
 class Chart(QWidget):
     """A user-made chart that loads from a python file."""
-    def __init__(self, path):
+    def __init__(self, output_dir, path):
         super().__init__()
+        self.output_dir = output_dir
         self.path = path
         self.title = path.stem
         self.wchart = QWidget()  # Initialized later in reload()
@@ -108,7 +109,7 @@ class Chart(QWidget):
         spec = importlib.util.spec_from_file_location(self.title, self.path)
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
-        self.wchart = module.chart()
+        self.wchart = module.chart(str(self.output_dir))
 
         self.layout().addWidget(self.wchart)
 

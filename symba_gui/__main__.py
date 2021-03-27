@@ -440,7 +440,7 @@ class MainWindow(QMainWindow):
                 
                 if self.output_chart_dir.exists():
                     for chart_path in self.output_chart_dir.iterdir():
-                        self.wcharts.addTab(Chart(chart_path), chart_path.stem)
+                        self.wcharts.addTab(Chart(self.output_dir, chart_path), chart_path.stem)
                     
                 if self.wcharts.count() > 0:
                     self.wcentral_widget.setCurrentWidget(self.wcharts)
@@ -662,7 +662,7 @@ class MainWindow(QMainWindow):
                 f.write(code)
 
             self.unsaved_changes = True
-            self.wcharts.addTab(Chart(path), title)
+            self.wcharts.addTab(Chart(self.output_dir, path), title)
             self.wcharts.setCurrentIndex(self.wcharts.count() - 1)
             self.wcentral_widget.setCurrentWidget(self.wcharts)
 
