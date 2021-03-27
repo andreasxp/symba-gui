@@ -100,7 +100,7 @@ class MainWindow(QMainWindow):
         wcontainer.setLayout(lycontainer)
 
         self.wsim_button = QPushButton(" Simulate")
-        self.wsim_button.setIcon(QIcon(str(package.dir / "data/play.svg")))
+        self.wsim_button.setIcon(QIcon(str(package.dir / "data/icons/play.svg")))
         self.wsim_button.setIconSize(QSize(px(0.125), px(0.125)))
         self.wsim_button.clicked.connect(self.actionStartSimulation)
         lycontainer.addWidget(self.wsim_button)
@@ -233,7 +233,7 @@ class MainWindow(QMainWindow):
         lyno_chart_placeholder.addWidget(wno_chart_placeholder_svg, 1, 1)
 
         wno_chart_placeholder_add_chart_button = QPushButton(" Add Chart")
-        wno_chart_placeholder_add_chart_button.setIcon(QIcon(str(package.dir / "data/plus.svg")))
+        wno_chart_placeholder_add_chart_button.setIcon(QIcon(str(package.dir / "data/icons/plus.svg")))
         wno_chart_placeholder_add_chart_button.setIconSize(QSize(px(0.125), px(0.125)))
         wno_chart_placeholder_add_chart_button.clicked.connect(self.actionAddChart)
         lyno_chart_placeholder.addWidget(wno_chart_placeholder_add_chart_button, 2, 1, Qt.AlignHCenter)
@@ -252,19 +252,19 @@ class MainWindow(QMainWindow):
         wcontainer.setLayout(lycontainer)
 
         self.wadd_chart_button = QPushButton()
-        self.wadd_chart_button.setIcon(QIcon(str(package.dir / "data/plus.svg")))
+        self.wadd_chart_button.setIcon(QIcon(str(package.dir / "data/icons/plus.svg")))
         self.wadd_chart_button.setFixedSize(px(0.21), px(0.21))
         self.wadd_chart_button.setIconSize(QSize(px(0.125), px(0.125)))
         self.wadd_chart_button.clicked.connect(self.actionAddChart)
 
         self.wedit_chart_button = QPushButton()
-        self.wedit_chart_button.setIcon(QIcon(str(package.dir / "data/edit.svg")))
+        self.wedit_chart_button.setIcon(QIcon(str(package.dir / "data/icons/edit.svg")))
         self.wedit_chart_button.setFixedSize(px(0.21), px(0.21))
         self.wedit_chart_button.setIconSize(QSize(px(0.125), px(0.125)))
         self.wedit_chart_button.clicked.connect(self.actionEditCurrentChart)
 
         self.wremove_chart_button = QPushButton()
-        self.wremove_chart_button.setIcon(QIcon(str(package.dir / "data/cross.svg")))
+        self.wremove_chart_button.setIcon(QIcon(str(package.dir / "data/icons/cross.svg")))
         self.wremove_chart_button.setFixedSize(px(0.21), px(0.21))
         self.wremove_chart_button.setIconSize(QSize(px(0.125), px(0.125)))
         self.wremove_chart_button.clicked.connect(self.actionRemoveCurrentChart)
@@ -630,7 +630,7 @@ class MainWindow(QMainWindow):
         self.simulation.stepChanged.connect(updateProgressBar)
 
         # Change start button to stop
-        self.wsim_button.setIcon(QIcon(str(package.dir / "data/stop.svg")))
+        self.wsim_button.setIcon(QIcon(str(package.dir / "data/icons/stop.svg")))
         self.wsim_button.setText(" Stop")
         self.wsim_button.clicked.disconnect(self.actionStartSimulation)
         self.wsim_button.clicked.connect(self.actionStopSimulation)
@@ -755,11 +755,11 @@ class MainWindow(QMainWindow):
             self.output_dir.mkdir()
             
             self.wsim_button.setText(" Simulate")
-            self.wsim_button.setIcon(QIcon(str(package.dir / "data/play.svg")))
+            self.wsim_button.setIcon(QIcon(str(package.dir / "data/icons/play.svg")))
         else:
             self.wcentral_widget.setCurrentWidget(self.wno_chart_placeholder)
             self.wsim_button.setText(" Re-simulate")
-            self.wsim_button.setIcon(QIcon(str(package.dir / "data/restart.svg")))
+            self.wsim_button.setIcon(QIcon(str(package.dir / "data/icons/restart.svg")))
         
         self.wsim_progess_bar.setRange(0, 1)
         self.wsim_progess_bar.reset()
@@ -791,7 +791,7 @@ def main():
     app = QApplication(sys.argv)
     app.setApplicationName("symba_gui")
     app.setApplicationDisplayName("Symba Designer")
-    app.setWindowIcon(QIcon(str(package.dir / "data/icon.ico")))
+    app.setWindowIcon(QIcon(str(package.dir / "data/icons/icon.ico")))
     app.setStyle(QStyleFactory.create("fusion"))
     args = parse_args()
 
