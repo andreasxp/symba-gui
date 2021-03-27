@@ -28,13 +28,15 @@ from .simulation import Simulation
 
 
 class ChartEditor(QDialog):
-    def __init__(self, parent=None, title="Untitled Chart", code=None):
+    def __init__(self, parent=None, title=None, code=None):
         super().__init__(parent=parent)
         self.setWindowTitle("Chart Editor")
 
-        self.wtitle = QLineEdit(title)
+        self.wtitle = QLineEdit(title or "Untitled Chart")
         self.wcode = QTextEdit()
+        self.wcode.setText(code or "")
         font = QFont("Inconsolata", 12)
+        font.setStretch(110)
         metrics = QFontMetricsF(font)
         self.wcode.setFont(font)
         self.wcode.setTabStopDistance(metrics.horizontalAdvance("a")*4)
@@ -88,12 +90,6 @@ class Chart(QWidget):
         self.path = path
         self.title = path.stem
 
-        # Import the module and call chart() function
-        spec = importlib.util.spec_from_file_location(self.title, self.path)
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        self.wchart = module.chart()
-
         ly = QVBoxLayout()
         self.setLayout(ly)
         lyheader = QHBoxLayout()
@@ -105,5 +101,47 @@ class Chart(QWidget):
         lyheader.addWidget(self.wedit_button)
         lyheader.addWidget(self.wdelete_button)
 
+        self.wchart = QWidget()  # Initialized later in reload()
+
         ly.addLayout(lyheader)
         ly.addWidget(self.wchart)
+
+        self.reload()
+
+    def reload(self, path=None):
+        self.path = path or self.path
+
+        self.layout().removeWidget(self.wchart)
+
+        # Import the module and call chart() function
+        spec = importlib.util.spec_from_file_location(self.title, self.path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        self.wchart = module.chart()
+
+        self.layout().addWidget(self.wchart)
+
+    def editor(self):
+        """Create and return an editor that is linked to this chart."""
+        with open(self.path, "r", encoding="utf-8") as f:
+            code = f.read()
+        
+        dialog = ChartEditor(self, self.title, code)
+        
+        def done(result):
+            if not result:
+                return  # User cancelled
+
+            title = dialog.title
+            code = dialog.code
+
+            self.path.unlink()
+            self.path = self.path.parent / (title + ".py")
+
+            with open(self.path, "w", encoding="utf-8") as f:
+                f.write(code)
+
+            self.reload()
+        
+        dialog.finished.connect(done)
+        return dialog
