@@ -1,9 +1,8 @@
 import importlib.util
-
-from PySide2.QtGui import QFont, QFontMetricsF
 from PySide2.QtWidgets import (
-    QWidget, QDialog, QDialogButtonBox, QLabel, QLineEdit, QTextEdit, QHBoxLayout, QVBoxLayout, QFrame
+    QWidget, QDialog, QDialogButtonBox, QLabel, QLineEdit, QHBoxLayout, QVBoxLayout, QFrame
 )
+import symba_gui as package
 from .editor import Editor
 
 
@@ -16,10 +15,22 @@ class ChartEditor(QDialog):
         self.wcode = Editor()
         def onLoad():
             self.wcode.setLanguage("python")
-            if code is not None:
-                self.wcode.setText(code)
+            nonlocal code
+            if code is None:
+                with open(package.dir / "data/default_chart.py", "r", encoding="utf-8") as f:
+                    code = f.read()
+                    
+            self.wcode.setText(code)
 
         self.wcode.loadFinished.connect(onLoad)
+
+        wcode_frame = QFrame()
+        wcode_frame.setFrameShape(wcode_frame.Box)
+        wcode_frame.setFrameShadow(wcode_frame.Sunken)
+        lycode_frame = QHBoxLayout()
+        lycode_frame.setContentsMargins(0, 0, 0, 0)
+        wcode_frame.setLayout(lycode_frame)
+        lycode_frame.addWidget(self.wcode)
 
         lytitle_container = QHBoxLayout()
         lytitle_container.setContentsMargins(0, 0, 0, 0)
@@ -42,7 +53,7 @@ class ChartEditor(QDialog):
         self.setLayout(ly)
 
         ly.addLayout(lytitle_container)
-        ly.addWidget(self.wcode)
+        ly.addWidget(wcode_frame)
         ly.addWidget(line)
         ly.addWidget(button_box)
     
