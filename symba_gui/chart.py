@@ -4,6 +4,7 @@ from PySide2.QtGui import QFont, QFontMetricsF
 from PySide2.QtWidgets import (
     QWidget, QDialog, QDialogButtonBox, QLabel, QLineEdit, QTextEdit, QHBoxLayout, QVBoxLayout, QFrame
 )
+from .editor import Editor
 
 
 class ChartEditor(QDialog):
@@ -12,13 +13,13 @@ class ChartEditor(QDialog):
         self.setWindowTitle("Chart Editor")
 
         self.wtitle = QLineEdit(title or "Untitled Chart")
-        self.wcode = QTextEdit()
-        self.wcode.setText(code or "")
-        font = QFont("Inconsolata", 12)
-        font.setStretch(110)
-        metrics = QFontMetricsF(font)
-        self.wcode.setFont(font)
-        self.wcode.setTabStopDistance(metrics.horizontalAdvance("a")*4)
+        self.wcode = Editor()
+        def onLoad():
+            self.wcode.setLanguage("python")
+            if code is not None:
+                self.wcode.setText(code)
+
+        self.wcode.loadFinished.connect(onLoad)
 
         lytitle_container = QHBoxLayout()
         lytitle_container.setContentsMargins(0, 0, 0, 0)
@@ -55,7 +56,7 @@ class ChartEditor(QDialog):
     
     @property
     def code(self):
-        return self.wcode.toPlainText()
+        return self.wcode.text()
     
     @code.setter
     def code(self, text):
