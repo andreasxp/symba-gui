@@ -389,13 +389,11 @@ class MainWindow(QMainWindow):
 
     def loadFile(self, path):
         """Load file from zip, without prompting user for changes."""
-        self.opened_file = path
-
         # Clean directory
         shutil.rmtree(self.output_dir)
         self.output_dir.mkdir()
 
-        if self.opened_file is None:
+        if path is None:
             # Create new file
             self.wn_agents.setValue(500)
             self.wn_stocks.setValue(1)
@@ -446,6 +444,7 @@ class MainWindow(QMainWindow):
             else:
                 self.wcentral_widget.setCurrentWidget(self.wno_sim_placeholder)
 
+        self.opened_file = path
         self.saved_model_params = self.modelParams()  # For comparison for "save changes" dialog
         self.unsaved_changes = False
     
@@ -473,6 +472,26 @@ class MainWindow(QMainWindow):
         # Update saved_ values
         self.saved_model_params = self.modelParams()
         self.unsaved_changes = False
+
+    def launchNewApplication(self, path=None, window_pos=None):
+        """Start a new application, optionally passing CLI arguments."""
+        cli_args = []
+
+        if path is not None:
+            cli_args.append(str(path))
+
+        if window_pos is not None:
+            cli_args += ["--window-pos", str(window_pos)]
+
+        if sys.argv[0].endswith("__main__.py"):
+            # Application launched with python
+            Popen(
+                [sys.executable, "-m", Path(sys.argv[0]).parent.name] + cli_args,
+                cwd=Path(sys.argv[0]).parent.parent
+            )
+        else:
+            # Assume the application was launched using an executable
+            Popen([sys.argv[0]] + cli_args)
 
     # Actions ==========================================================================================================
     def promptSaveChanges(self) -> bool:
@@ -534,26 +553,14 @@ class MainWindow(QMainWindow):
         This process launches a new simulation window by creating a detached process. The way the process is created
         depends on sys.argv[0] (what is the origin of this process).
         """
-        pos_x = self.pos().x() + 40
-        pos_y = self.pos().y() + 40
-        cli_args = ["--window-pos", f"{pos_x},{pos_y}"]
+        pos_x = self.pos().x() + px(0.45)
+        pos_y = self.pos().y() + px(0.45)
 
-        if sys.argv[0].endswith("__main__.py"):
-            # Application launched with python
-            Popen(
-                [sys.executable, "-m", Path(sys.argv[0]).parent.name] + cli_args,
-                cwd=Path(sys.argv[0]).parent.parent
-            )
-        else:
-            # Assume the application was launched using an executable
-            Popen([sys.argv[0]] + cli_args)
+        self.launchNewApplication(window_pos=f"{pos_x},{pos_y}")
 
     def actionOpen(self):
-        if self.unsaved_changes:
-            if not self.promptSaveChanges():
-                # User cancelled during prompt
-                return
-        
+        """Open a .symba file in this window if no file is opened, or in a new window."""
+
         dialog = QFileDialog(
             parent=self, caption="Open", directory=str(self.save_dir), filter="Simulation Files (*.symba)"
         )
@@ -567,7 +574,16 @@ class MainWindow(QMainWindow):
             return False  # User cancelled
         
         path = Path(dialog.selectedFiles()[0])
-        self.loadFile(path)
+        
+        if self.opened_file is None and not self.unsaved_changes:
+            # Load file here
+            self.loadFile(path)
+        else:
+            # Load file in a new window
+            pos_x = self.pos().x() + px(0.45)
+            pos_y = self.pos().y() + px(0.45)
+
+            self.launchNewApplication(path=path, window_pos=f"{pos_x},{pos_y}")
 
     def actionSave(self) -> bool:
         if self.opened_file:
@@ -798,6 +814,9 @@ def main():
     main_window = MainWindow()
     if args.window_pos is not None:
         main_window.move(*args.window_pos)
+    
+    if args.path is not None:
+        main_window.loadFile(args.path)
 
     main_window.show()
     return app.exec_()
