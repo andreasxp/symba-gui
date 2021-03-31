@@ -32,10 +32,6 @@ class MainWindow(QMainWindow):
         # Exception catching
         self.__excepthook__ = sys.excepthook
         sys.excepthook = self.excepthook
-
-        # Loading fonts ================================================================================================
-        for path in (package.dir / "data" / "fonts").glob("*"):
-            QFontDatabase.addApplicationFont(str(path))
         
         # Application properties =======================================================================================
         self.app_data_dir = Path(QStandardPaths.writableLocation(QStandardPaths.AppDataLocation))
