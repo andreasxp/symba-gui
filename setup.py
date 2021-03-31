@@ -17,6 +17,10 @@ entry_points = {
     "console_scripts": ["symba-gui-d = symba_gui.__main__:main"]
 }
 
+package_data = {
+    "symba_gui": ["data/*"]
+}
+
 setup(
     name="symba-gui",
     version="0.1",
@@ -24,6 +28,6 @@ setup(
     install_requires=install_requires,
     extras_require=extras_require,
     entry_points=entry_points,
-    packages=find_packages(),
-    #package_data=package_data,
+    packages=find_packages(include=["symba_gui.*"]),
+    package_data=package_data,
 )
