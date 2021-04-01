@@ -21,11 +21,11 @@ Prerequisites: [Python 3](https://www.python.org/), [git](https://git-scm.com/).
 To install symba in dev mode, git-clone it to your machine, and run the editable pip install process:
 ```
 git clone https://github.com/andreasxp/symba-gui/archive/master.zip
-pip install --editable symba-gui
+pip3 install --editable symba-gui
 ```
 For the experimental executable freezing support, install symba with the `freeze` attribute:
 ```
-pip install --editable symba-gui[freeze]
+pip3 install --editable symba-gui[freeze]
 ```
 
 Besides starting Symba as `symba-gui`, you can also execute `symba-gui-d` to start it in debug mode. This will print all exceptions to the command line.
