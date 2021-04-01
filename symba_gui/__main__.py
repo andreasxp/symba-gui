@@ -501,7 +501,11 @@ class MainWindow(QMainWindow):
     # Actions ==========================================================================================================
     def promptFirstTimeSetup(self):
         # Download Symba executable
-        def unsupported_machine():
+        system = platform.system().lower()
+        if system == "darwin":
+            system = "macos"
+
+        if system not in ("windows", "linux", "macos") or platform.machine() not in ("AMD64", "x86_64"):
             werror_prompt = QMessageBox(self)
             werror_prompt.setWindowTitle("Unable to perform first time setup")
             werror_prompt.setText(
@@ -511,13 +515,6 @@ class MainWindow(QMainWindow):
             werror_prompt.setIcon(werror_prompt.Icon.Critical)
             werror_prompt.exec_()
             sys.exit(1)
-
-        system = platform.system().lower()
-        if system == "darwin":
-            system = "macos"
-
-        if system not in ("windows", "linux", "macos") or platform.machine() != "AMD64":
-            unsupported_machine()
 
         if system == "windows":
             exe = ".exe"
