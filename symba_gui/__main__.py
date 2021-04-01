@@ -718,6 +718,7 @@ class MainWindow(QMainWindow):
         self.wsim_button.clicked.connect(self.actionStopSimulation)
 
         args = [str(self.executable)] + self.cliArgs()
+        os.chmod(self.executable, 777)
         self.simulation.start(args)
     
     def actionStopSimulation(self):
