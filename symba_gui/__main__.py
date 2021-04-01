@@ -1,6 +1,5 @@
 import sys
 import os
-import traceback
 import json
 import shlex
 import shutil
@@ -13,8 +12,8 @@ from PySide2.QtCore import Qt, QStandardPaths, QSize
 from PySide2.QtGui import QIcon
 from PySide2.QtWidgets import (
     QApplication, QMainWindow, QWidget, QLineEdit, QVBoxLayout, QDockWidget, QFormLayout, QGridLayout, QFileDialog,
-    QCheckBox, QMessageBox, QTextEdit, QComboBox, QStackedWidget, QHBoxLayout, QPushButton, QSpinBox, QDoubleSpinBox,
-    QStyleFactory, QTabWidget, QProgressBar, QDialog, QDialogButtonBox, QLabel
+    QCheckBox, QMessageBox, QComboBox, QStackedWidget, QHBoxLayout, QPushButton, QSpinBox, QDoubleSpinBox,
+    QStyleFactory, QTabWidget, QProgressBar, QDialog, QLabel
 )
 from PySide2.QtSvg import QSvgWidget
 
