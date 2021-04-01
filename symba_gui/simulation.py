@@ -1,6 +1,8 @@
 import re
+import platform
+import subprocess as sp
 from threading import Thread
-from subprocess import Popen, PIPE, DEVNULL, CREATE_NO_WINDOW
+from subprocess import Popen, PIPE, DEVNULL
 from PySide2.QtCore import QObject, Signal
 
 
@@ -28,12 +30,16 @@ class Simulation(QObject):
         """Flag that is set if the simulation was terminated manually."""
 
     def start(self, cli_args):
+        creationflags = 0
+        if platform.system() == "Windows":
+            creationflags = sp.CREATE_NO_WINDOW
+
         self.process = Popen(
             cli_args,
             stdout=PIPE,
             stderr=DEVNULL,
             text=True,
-            creationflags=CREATE_NO_WINDOW
+            creationflags=creationflags
         )
         Thread(target=self.poll).start()
 
