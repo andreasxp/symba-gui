@@ -4,16 +4,17 @@ import traceback
 import json
 import shlex
 import shutil
+import platform
 from subprocess import Popen
 from pathlib import Path
 from zipfile import ZipFile
 
 from PySide2.QtCore import Qt, QStandardPaths, QSize
-from PySide2.QtGui import QIcon, QFontDatabase
+from PySide2.QtGui import QIcon
 from PySide2.QtWidgets import (
     QApplication, QMainWindow, QWidget, QLineEdit, QVBoxLayout, QDockWidget, QFormLayout, QGridLayout, QFileDialog,
     QCheckBox, QMessageBox, QTextEdit, QComboBox, QStackedWidget, QHBoxLayout, QPushButton, QSpinBox, QDoubleSpinBox,
-    QStyleFactory, QTabWidget, QProgressBar
+    QStyleFactory, QTabWidget, QProgressBar, QDialog, QDialogButtonBox, QLabel
 )
 from PySide2.QtSvg import QSvgWidget
 
@@ -23,6 +24,7 @@ from symba_gui.dpi import inches_to_pixels as px
 from symba_gui.simulation import Simulation
 from symba_gui.prefs_exepicker import PrefsExePicker
 from symba_gui.chart import ChartEditor, Chart
+from symba_gui.util import Download, ExceptionMessageBox
 
 
 class MainWindow(QMainWindow):
@@ -34,23 +36,29 @@ class MainWindow(QMainWindow):
         sys.excepthook = self.excepthook
         
         # Application properties =======================================================================================
+        first_time_setup = False  # Set to True later if something requires it
+
         self.app_data_dir = Path(QStandardPaths.writableLocation(QStandardPaths.AppDataLocation))
         """Directory of user-specific application data."""
         self.app_data_dir.mkdir(parents=True, exist_ok=True)
         
+        # Built-in Symba executable
+        exe = ".exe" if platform.system() == "Windows" else ""
+        self.builtin_executable = self.app_data_dir / "bin" / f"symba{exe}"
+        if not self.builtin_executable.exists():
+            first_time_setup = True
+
         if (self.app_data_dir / "config.json").exists():
             # Load config file
             with open(self.app_data_dir / "config.json", "r", encoding="utf-8") as f:
                 config = json.load(f)
 
             self.save_dir = Path(config["save_dir"])
-            self.builtin_executable = Path(config["executables"]["built-in"])
             self.executable = Path(config["executables"]["user-choice"])
             self.executables = [Path(s) for s in config["executables"]["paths"]]
         else:
             # If config file does not exist, create from defaults and write it
             self.save_dir = Path(QStandardPaths.writableLocation(QStandardPaths.DocumentsLocation))
-            self.builtin_executable = package.dir / "bin" / "symba.exe"
             self.executable = self.builtin_executable
             self.executables = [self.builtin_executable]
 
@@ -64,7 +72,7 @@ class MainWindow(QMainWindow):
         self._unsaved_changes = False
 
         temp_dir = Path(QStandardPaths.writableLocation(QStandardPaths.TempLocation))
-        self.output_dir = temp_dir / "symba_gui" / "instances" / str(os.getpid())
+        self.output_dir = temp_dir / "symba-gui" / "instances" / str(os.getpid())
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.output_chart_dir = self.output_dir / "Charts"  # Will be created when a chart is added
 
@@ -316,6 +324,9 @@ class MainWindow(QMainWindow):
         # ==============================================================================================================
         self.loadNewFile()
 
+        if first_time_setup:
+            self.promptFirstTimeSetup()
+
     @property
     def unsaved_changes(self) -> bool:
         """True if the user has unsaved changes.
@@ -376,7 +387,6 @@ class MainWindow(QMainWindow):
             "executables": {
                 "paths": [str(path) for path in self.executables],
                 "user-choice": str(self.executable),
-                "built-in": str(self.builtin_executable)
             },
             "save_dir": str(self.save_dir)
         }
@@ -490,6 +500,70 @@ class MainWindow(QMainWindow):
             Popen([sys.argv[0]] + cli_args)
 
     # Actions ==========================================================================================================
+    def promptFirstTimeSetup(self):
+        # Download Symba executable
+        def unsupported_machine():
+            werror_prompt = QMessageBox(self)
+            werror_prompt.setWindowTitle("Unable to perform first time setup")
+            werror_prompt.setText(
+                "Symba Designer cannot be installed on your system.\n"
+                "Symba simulations currently only support Windows, Linux, or MacOS, with an x64 architecture."
+            )
+            werror_prompt.setIcon(werror_prompt.Icon.Critical)
+            werror_prompt.exec_()
+            sys.exit(1)
+
+        system = platform.system().lower()
+        if system == "darwin":
+            system = "macos"
+
+        if system not in ("windows", "linux", "macos") or platform.machine() != "AMD64":
+            unsupported_machine()
+
+        if system == "windows":
+            exe = ".exe"
+        else:
+            exe = ""
+        
+        url = f"https://github.com/andreasxp/symba-releases/releases/download/1.0.0/symba-x64-{system}{exe}"
+        download = Download(self, url, self.builtin_executable)
+
+        self.builtin_executable.parent.mkdir(parents=True, exist_ok=True)
+
+        # --------------------------------------------------------------------------------------------------------------
+        wprompt = QDialog(self)
+        wprompt.setWindowTitle("First time setup")
+        wprompt.setWindowFlags(Qt.Window | Qt.CustomizeWindowHint | Qt.WindowTitleHint)
+        wprompt.setFixedWidth(px(3.5))
+
+        wtitle = QLabel("Performing first time setup:")
+        wprogress_bar = QProgressBar()
+        wprogress_bar.setRange(0, 100)
+
+        wdetails = QLabel("Downloading Symba executable")
+
+        ly = QVBoxLayout()
+        wprompt.setLayout(ly)
+
+        ly.addWidget(wtitle)
+        ly.addWidget(wprogress_bar)
+        ly.addWidget(wdetails)
+
+        def onDownloadFailed(e):
+            ExceptionMessageBox(self, e).exec_()
+            wprompt.reject()
+
+        download.advanced.connect(wprogress_bar.setValue)
+        download.completed.connect(download.deleteLater)
+        download.completed.connect(wprompt.accept)
+        download.failed.connect(onDownloadFailed)
+
+        download.start()
+
+        answer = wprompt.exec_()
+        if answer == wprompt.Rejected:
+            sys.exit(1)
+
     def promptSaveChanges(self) -> bool:
         """Prompt the user to save changes to current project.
         Display a message box asking the user if they want to save changes. If user selects Save, execute actionSave.
@@ -782,26 +856,15 @@ class MainWindow(QMainWindow):
 
     # Exception handling ===============================================================================================
     def excepthook(self, etype, value, tb):
-        message = QMessageBox(self)
-        message.setWindowTitle("Critical Error")
-        message.setText(
-            "An unknown critical error occured. It is recommended to save your work and restart Symba Designer.\n\n"
-            "Please inform the developer, describing what you were doing before the error, and attach the text below."
-        )
-        message.setIcon(message.Icon.Critical)
-
-        exception_field = QTextEdit()
-        exception_field.setText("".join(traceback.format_exception(etype, value, tb)))
-        exception_field.setReadOnly(True)
-        message.layout().addWidget(exception_field, 1, 0, 1, -1)
-        message.exec_()
+        wprompt = ExceptionMessageBox(value)
+        wprompt.exec_()
 
         self.__excepthook__(etype, value, tb)
 
 
 def main():
     app = QApplication(sys.argv)
-    app.setApplicationName("symba_gui")
+    app.setApplicationName("symba-gui")
     app.setApplicationDisplayName("Symba Designer")
     app.setWindowIcon(QIcon(str(package.dir / "data/icons/icon.ico")))
     app.setStyle(QStyleFactory.create("fusion"))
