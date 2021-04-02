@@ -13,7 +13,7 @@ from PySide2.QtGui import QIcon
 from PySide2.QtWidgets import (
     QApplication, QMainWindow, QWidget, QLineEdit, QVBoxLayout, QDockWidget, QFormLayout, QGridLayout, QFileDialog,
     QCheckBox, QMessageBox, QComboBox, QStackedWidget, QHBoxLayout, QPushButton, QSpinBox, QDoubleSpinBox,
-    QStyleFactory, QTabWidget, QProgressBar, QDialog, QLabel
+    QStyleFactory, QTabWidget, QProgressBar
 )
 from PySide2.QtSvg import QSvgWidget
 
@@ -23,7 +23,7 @@ from symba_gui.dpi import inches_to_pixels as px
 from symba_gui.simulation import Simulation
 from symba_gui.prefs_exepicker import PrefsExePicker
 from symba_gui.chart import ChartEditor, Chart
-from symba_gui.util import Download, ExceptionMessageBox
+from symba_gui.util import ExceptionMessageBox
 from symba_gui.first_time_setup import FirstTimeSetup
 
 
