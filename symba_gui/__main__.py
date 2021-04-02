@@ -24,6 +24,7 @@ from symba_gui.simulation import Simulation
 from symba_gui.prefs_exepicker import PrefsExePicker
 from symba_gui.chart import ChartEditor, Chart
 from symba_gui.util import Download, ExceptionMessageBox
+from symba_gui.first_time_setup import FirstTimeSetup
 
 
 class MainWindow(QMainWindow):
@@ -500,65 +501,8 @@ class MainWindow(QMainWindow):
 
     # Actions ==========================================================================================================
     def promptFirstTimeSetup(self):
-        # Download Symba executable
-        system = platform.system().lower()
-        if system == "darwin":
-            system = "macos"
-
-        if system not in ("windows", "linux", "macos") or platform.machine() not in ("AMD64", "x86_64"):
-            werror_prompt = QMessageBox(self)
-            werror_prompt.setWindowTitle("Unable to perform first time setup")
-            werror_prompt.setText(
-                "Symba Designer cannot be installed on your system.\n"
-                "Symba simulations currently only support Windows, Linux, or MacOS, with an x64 architecture."
-            )
-            werror_prompt.setIcon(werror_prompt.Icon.Critical)
-            werror_prompt.exec_()
-            sys.exit(1)
-
-        if system == "windows":
-            exe = ".exe"
-        else:
-            exe = ""
-        
-        url = f"https://github.com/andreasxp/symba-releases/releases/download/1.0.0/symba-x64-{system}{exe}"
-        download = Download(self, url, self.builtin_executable)
-
-        self.builtin_executable.parent.mkdir(parents=True, exist_ok=True)
-
-        # --------------------------------------------------------------------------------------------------------------
-        wprompt = QDialog(self)
-        wprompt.setWindowTitle("First time setup")
-        wprompt.setWindowFlags(Qt.Window | Qt.CustomizeWindowHint | Qt.WindowTitleHint)
-        wprompt.setFixedWidth(px(3.5))
-
-        wtitle = QLabel("Performing first time setup:")
-        wprogress_bar = QProgressBar()
-        wprogress_bar.setRange(0, 100)
-
-        wdetails = QLabel("Downloading Symba executable")
-
-        ly = QVBoxLayout()
-        wprompt.setLayout(ly)
-
-        ly.addWidget(wtitle)
-        ly.addWidget(wprogress_bar)
-        ly.addWidget(wdetails)
-
-        def onDownloadFailed(e):
-            ExceptionMessageBox(self, e).exec_()
-            wprompt.reject()
-
-        download.advanced.connect(wprogress_bar.setValue)
-        download.completed.connect(download.deleteLater)
-        download.completed.connect(wprompt.accept)
-        download.failed.connect(onDownloadFailed)
-
-        download.start()
-
-        answer = wprompt.exec_()
-        if answer == wprompt.Rejected:
-            sys.exit(1)
+        dialog = FirstTimeSetup(self, self.builtin_executable.parent)
+        dialog.exec_()
 
     def promptSaveChanges(self) -> bool:
         """Prompt the user to save changes to current project.
@@ -650,6 +594,8 @@ class MainWindow(QMainWindow):
             pos_y = self.pos().y() + px(0.45)
 
             self.launchNewApplication(path=path, window_pos=f"{pos_x},{pos_y}")
+        
+        return True
 
     def actionSave(self) -> bool:
         if self.opened_file:
@@ -718,7 +664,6 @@ class MainWindow(QMainWindow):
         self.wsim_button.clicked.connect(self.actionStopSimulation)
 
         args = [str(self.executable)] + self.cliArgs()
-        os.chmod(self.executable, 0o777)
         self.simulation.start(args)
     
     def actionStopSimulation(self):
@@ -853,7 +798,7 @@ class MainWindow(QMainWindow):
 
     # Exception handling ===============================================================================================
     def excepthook(self, etype, value, tb):
-        wprompt = ExceptionMessageBox(value)
+        wprompt = ExceptionMessageBox(self, value)
         wprompt.exec_()
 
         self.__excepthook__(etype, value, tb)
