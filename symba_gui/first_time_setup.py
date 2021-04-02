@@ -166,7 +166,7 @@ class FirstTimeSetup(QDialog):
             else:
                 uid = os.geteuid()
 
-                with TarFile(self.compressed_bin_path, "r") as tf:
+                with TarFile.open(self.compressed_bin_path, "r") as tf:
                     tf.extractall(self.bin_dir, numeric_owner=uid)
         except Exception as e:
             self.exception = e
