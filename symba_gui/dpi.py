@@ -1,17 +1,26 @@
 """Converts units in inches to units in pixels using logical dpi of the application."""
 from typing import Union
+from functools import cache
 from PySide2.QtCore import QPoint, QPointF, QSize, QSizeF, QRect, QRectF
 from PySide2.QtWidgets import QApplication, QWidget
 
 
+@cache
 def dpi():
     """Return this application's logical dpi"""
     # Check if the application has been created. If the application has not been created, dpi cannot be measured.
     if QApplication.instance() is None:
         raise RuntimeError("dpi(): Must construct a QApplication before measuring dpi")
 
-    return QWidget().physicalDpiX()
+    w = QWidget()
+    physical_dpi = w.physicalDpiX()
+    logical_dpi = w.logicalDpiX()
 
+    if logical_dpi == 72:
+        # The function assumes that a dpi of 72 is fake. (like the dpi reported on MacOS)
+        # In this case, return physical dpi.
+        return physical_dpi
+    return logical_dpi
 
 def inches_to_pixels(value: Union[int, float, QPoint, QPointF, QSize, QSizeF, QRect, QRectF]):
     """Convert a value in inches to a value in pixels.
