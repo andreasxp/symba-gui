@@ -13,6 +13,18 @@ class Editor(QWebEngineView):
         editor_index = package.dir / "data/monaco-editor-0.23.0/index.html"
         self.load(QUrl.fromLocalFile(str(editor_index)))
 
+        # Spin event loop until initialization has finished ------------------------------------------------------------
+        initialized = False
+        def onInitialized():
+            nonlocal initialized
+            initialized = True
+        
+        self.loadFinished.connect(onInitialized)
+
+        app = QCoreApplication.instance()
+        while not initialized:
+            app.processEvents()
+
     def _run(self, query):
         """Communicate with the internal webpage by running JS and waiting for a result."""
         result = self._no_result

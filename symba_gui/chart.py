@@ -13,16 +13,13 @@ class ChartEditor(QDialog):
 
         self.wtitle = QLineEdit(title or "Untitled Chart")
         self.wcode = Editor()
-        def onLoad():
-            self.wcode.setLanguage("python")
-            nonlocal code
-            if code is None:
-                with open(package.dir / "data/default_chart.py", "r", encoding="utf-8") as f:
-                    code = f.read()
-                    
-            self.wcode.setText(code)
+        self.wcode.setLanguage("python")
 
-        self.wcode.loadFinished.connect(onLoad)
+        if code is None:
+            with open(package.dir / "data/default_chart.py", "r", encoding="utf-8") as f:
+                code = f.read()
+                
+        self.wcode.setText(code)
 
         wcode_frame = QFrame()
         wcode_frame.setFrameShape(wcode_frame.Box)
