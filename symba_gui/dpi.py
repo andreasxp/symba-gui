@@ -10,7 +10,7 @@ def dpi():
     if QApplication.instance() is None:
         raise RuntimeError("dpi(): Must construct a QApplication before measuring dpi")
 
-    return QWidget().logicalDpiX()
+    return QWidget().physicalDpiX()
 
 
 def inches_to_pixels(value: Union[int, float, QPoint, QPointF, QSize, QSizeF, QRect, QRectF]):
