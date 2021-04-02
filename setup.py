@@ -9,7 +9,8 @@ def setuptools_glob_workaround(package_name, glob):
 
 install_requires = [
     "pyside2",
-    "pyqtgraph"
+    "pyqtgraph",
+    "requests"
 ]
 
 extras_require = {
