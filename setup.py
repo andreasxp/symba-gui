@@ -1,5 +1,11 @@
 """Setup script for symba-gui package."""
 from setuptools import setup, find_packages
+from pathlib import Path
+
+def setuptools_glob_workaround(package_name, glob):
+    # https://stackoverflow.com/q/27664504/9118363
+    package_path = Path(f'./{package_name}').resolve()
+    return [str(path.relative_to(package_path)) for path in package_path.glob(glob)]
 
 install_requires = [
     "pyside2",
@@ -18,7 +24,7 @@ entry_points = {
 }
 
 package_data = {
-    "symba_gui": ["data/*"]
+    "symba_gui": setuptools_glob_workaround("symba_gui", "data/**/*")
 }
 
 setup(
@@ -28,6 +34,6 @@ setup(
     install_requires=install_requires,
     extras_require=extras_require,
     entry_points=entry_points,
-    packages=find_packages(include=["symba_gui.*"]),
+    packages=find_packages(include=["symba_gui*"]),
     package_data=package_data,
 )
