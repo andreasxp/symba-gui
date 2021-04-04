@@ -106,14 +106,6 @@ class MainWindow(QMainWindow):
         self.wsim_button = QPushButton(" Simulate")
         self.wsim_button.setIcon(QIcon(str(package.dir / "data/icons/play.svg")))
         self.wsim_button.setIconSize(QSize(fs(1), fs(1)))
-        #self.wsim_button.setIconSize(QSize(12, 12))
-        from .dpi import logicalDpp, logicalDpi, physicalDpi, physicalDpp
-        print(f"logicalDpp: {logicalDpp()}")
-        print(f"physicalDpp: {physicalDpp()}")
-        print(f"logicalDpi: {logicalDpi()}")
-        print(f"physicalDpi: {physicalDpi()}")
-        print(f"fs(1) is {fs(1)} pixels")
-        print(f"Font points: {QApplication.instance().font().pointSizeF()}")
         self.wsim_button.clicked.connect(self.actionStartSimulation)
         lycontainer.addWidget(self.wsim_button)
 
