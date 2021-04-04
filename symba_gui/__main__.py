@@ -807,7 +807,7 @@ def main():
     app.setApplicationName("symba-gui")
     app.setApplicationDisplayName("Symba Designer")
 
-    if platform.system() == "darwin":
+    if platform.system() == "Darwin":
         app.setWindowIcon(QIcon(str(package.dir / "data/icons/icon-macos.png")))
     else:
         app.setWindowIcon(QIcon(str(package.dir / "data/icons/icon-generic.png")))
