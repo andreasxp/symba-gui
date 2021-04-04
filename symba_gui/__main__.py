@@ -19,7 +19,7 @@ from PySide2.QtSvg import QSvgWidget
 
 import symba_gui as package
 from symba_gui.cli import parse_args
-from symba_gui.dpi import inches_to_pixels as px
+from symba_gui.dpi import fontSizesToLogicalPx as fs
 from symba_gui.simulation import Simulation
 from symba_gui.prefs_exepicker import PrefsExePicker
 from symba_gui.chart import ChartEditor, Chart
@@ -105,7 +105,15 @@ class MainWindow(QMainWindow):
 
         self.wsim_button = QPushButton(" Simulate")
         self.wsim_button.setIcon(QIcon(str(package.dir / "data/icons/play.svg")))
-        self.wsim_button.setIconSize(QSize(px(0.125), px(0.125)))
+        self.wsim_button.setIconSize(QSize(fs(1), fs(1)))
+        #self.wsim_button.setIconSize(QSize(12, 12))
+        from .dpi import logicalDpp, logicalDpi, physicalDpi, physicalDpp
+        print(f"logicalDpp: {logicalDpp()}")
+        print(f"physicalDpp: {physicalDpp()}")
+        print(f"logicalDpi: {logicalDpi()}")
+        print(f"physicalDpi: {physicalDpi()}")
+        print(f"fs(1) is {fs(1)} pixels")
+        print(f"Font points: {QApplication.instance().font().pointSizeF()}")
         self.wsim_button.clicked.connect(self.actionStartSimulation)
         lycontainer.addWidget(self.wsim_button)
 
@@ -206,7 +214,7 @@ class MainWindow(QMainWindow):
 
         # No simulation placeholder ------------------------------------------------------------------------------------
         self.wno_sim_placeholder = QWidget()
-        self.wno_sim_placeholder.setMinimumSize(px(8.695), px(6.522))
+        self.wno_sim_placeholder.setMinimumSize(fs(60), fs(50))
         wno_sim_placeholder_svg = QSvgWidget(str(package.dir / "data/no_sim_placeholder.svg"))
         wno_sim_placeholder_svg.setFixedSize(wno_sim_placeholder_svg.renderer().defaultSize())
 
@@ -222,11 +230,11 @@ class MainWindow(QMainWindow):
 
         # No chart placeholder -----------------------------------------------------------------------------------------
         self.wno_chart_placeholder = QWidget()
-        self.wno_chart_placeholder.setMinimumSize(px(8.695), px(6.522))
+        self.wno_chart_placeholder.setMinimumSize(fs(60), fs(50))
         lyno_chart_placeholder = QGridLayout()
         self.wno_chart_placeholder.setLayout(lyno_chart_placeholder)
         
-        lyno_chart_placeholder.setSpacing(px(0.2))
+        lyno_chart_placeholder.setSpacing(fs(2))
         lyno_chart_placeholder.setRowStretch(0, 10)
         lyno_chart_placeholder.setRowStretch(3, 15)
         lyno_chart_placeholder.setColumnStretch(0, 1)
@@ -238,7 +246,7 @@ class MainWindow(QMainWindow):
 
         wno_chart_placeholder_add_chart_button = QPushButton(" Add Chart")
         wno_chart_placeholder_add_chart_button.setIcon(QIcon(str(package.dir / "data/icons/plus.svg")))
-        wno_chart_placeholder_add_chart_button.setIconSize(QSize(px(0.125), px(0.125)))
+        wno_chart_placeholder_add_chart_button.setIconSize(QSize(fs(1), fs(1)))
         wno_chart_placeholder_add_chart_button.clicked.connect(self.actionAddChart)
         lyno_chart_placeholder.addWidget(wno_chart_placeholder_add_chart_button, 2, 1, Qt.AlignHCenter)
 
@@ -249,28 +257,28 @@ class MainWindow(QMainWindow):
         self.wcharts.setMovable(True)
 
         wcontainer = QWidget()
-        wcontainer.setContentsMargins(0, 0, px(0.01), px(0.01))
+        wcontainer.setContentsMargins(0, 0, fs(0.1), fs(0.1))
         lycontainer = QHBoxLayout()
         lycontainer.setContentsMargins(0, 0, 0, 0)
-        lycontainer.setSpacing(px(0.01))
+        lycontainer.setSpacing(fs(0.1))
         wcontainer.setLayout(lycontainer)
 
         self.wadd_chart_button = QPushButton()
         self.wadd_chart_button.setIcon(QIcon(str(package.dir / "data/icons/plus.svg")))
-        self.wadd_chart_button.setFixedSize(px(0.21), px(0.21))
-        self.wadd_chart_button.setIconSize(QSize(px(0.125), px(0.125)))
+        self.wadd_chart_button.setFixedSize(fs(1.9), fs(1.9))
+        self.wadd_chart_button.setIconSize(QSize(fs(1), fs(1)))
         self.wadd_chart_button.clicked.connect(self.actionAddChart)
 
         self.wedit_chart_button = QPushButton()
         self.wedit_chart_button.setIcon(QIcon(str(package.dir / "data/icons/edit.svg")))
-        self.wedit_chart_button.setFixedSize(px(0.21), px(0.21))
-        self.wedit_chart_button.setIconSize(QSize(px(0.125), px(0.125)))
+        self.wedit_chart_button.setFixedSize(fs(1.9), fs(1.9))
+        self.wedit_chart_button.setIconSize(QSize(fs(1), fs(1)))
         self.wedit_chart_button.clicked.connect(self.actionEditCurrentChart)
 
         self.wremove_chart_button = QPushButton()
         self.wremove_chart_button.setIcon(QIcon(str(package.dir / "data/icons/cross.svg")))
-        self.wremove_chart_button.setFixedSize(px(0.21), px(0.21))
-        self.wremove_chart_button.setIconSize(QSize(px(0.125), px(0.125)))
+        self.wremove_chart_button.setFixedSize(fs(1.9), fs(1.9))
+        self.wremove_chart_button.setIconSize(QSize(fs(1), fs(1)))
         self.wremove_chart_button.clicked.connect(self.actionRemoveCurrentChart)
 
         lycontainer.addWidget(self.wadd_chart_button)
@@ -563,8 +571,8 @@ class MainWindow(QMainWindow):
         This process launches a new simulation window by creating a detached process. The way the process is created
         depends on sys.argv[0] (what is the origin of this process).
         """
-        pos_x = self.pos().x() + px(0.45)
-        pos_y = self.pos().y() + px(0.45)
+        pos_x = self.pos().x() + fs(1.5)
+        pos_y = self.pos().y() + fs(4)
 
         self.launchNewApplication(window_pos=f"{pos_x},{pos_y}")
 
@@ -590,8 +598,8 @@ class MainWindow(QMainWindow):
             self.loadFile(path)
         else:
             # Load file in a new window
-            pos_x = self.pos().x() + px(0.45)
-            pos_y = self.pos().y() + px(0.45)
+            pos_x = self.pos().x() + fs(1.5)
+            pos_y = self.pos().y() + fs(4)
 
             self.launchNewApplication(path=path, window_pos=f"{pos_x},{pos_y}")
         

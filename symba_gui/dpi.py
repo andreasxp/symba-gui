@@ -6,53 +6,110 @@ from PySide2.QtWidgets import QApplication, QWidget
 
 
 @cache
-def dpi():
+def logicalDpi():
     """Return this application's logical dpi"""
     # Check if the application has been created. If the application has not been created, dpi cannot be measured.
     if QApplication.instance() is None:
         raise RuntimeError("dpi(): Must construct a QApplication before measuring dpi")
 
     w = QWidget()
-    physical_dpi = w.physicalDpiX()
-    logical_dpi = w.logicalDpiX()
+    return w.logicalDpiX()
 
-    if logical_dpi == 72:
-        # The function assumes that a dpi of 72 is fake. (like the dpi reported on MacOS)
-        # In this case, return physical dpi.
-        return physical_dpi
-    return logical_dpi
+@cache
+def physicalDpi():
+    """Return this application's logical dpi"""
+    # Check if the application has been created. If the application has not been created, dpi cannot be measured.
+    if QApplication.instance() is None:
+        raise RuntimeError("dpi(): Must construct a QApplication before measuring dpi")
 
-def inches_to_pixels(value: Union[int, float, QPoint, QPointF, QSize, QSizeF, QRect, QRectF]):
-    """Convert a value in inches to a value in pixels.
-    Supports values: plain numbers, QPoint, QPointF, QSize, QSizeF, QRect, QRectF.
+    w = QWidget()
+    return w.physicalDpiX()
+
+@cache
+def logicalDpp():
+    """Return this application's logical dots-per-point (font point)"""
+    return logicalDpi() / 72
+
+@cache
+def physicalDpp():
+    """Return this application's logical dots-per-point (font point)"""
+    return physicalDpi() / 72
+
+def scale(value: Union[int, float, QPoint, QPointF, QSize, QSizeF, QRect, QRectF], factor):
+    """Scale a value like an int, a float, a QPoint, a QRect, or other by some factor. Return a new value."""
+    if type(value) is QPoint:
+        return QPoint(round(value.x() * factor), round(value.y() * factor))
+
+    if type(value) is QPointF:
+        return QPointF(value.x() * factor, value.y() * factor)
+
+    if type(value) is QSize:
+        return QSize(round(value.width() * factor), round(value.height() * factor))
+
+    if type(value) is QSizeF:
+        return QSizeF(value.width() * factor, value.height() * factor)
+    
+    if type(value) is QRect:
+        return QRect(round(value.topLeft() * factor), round(value.bottomRight() * factor))
+
+    if type(value) is QRectF:
+        return QRectF(value.topLeft() * factor, value.bottomRight() * factor)
+
+    return round(value * factor)
+
+def inchToLogicalPx(value: Union[int, float, QPoint, QPointF, QSize, QSizeF, QRect, QRectF]):
+    """Convert a value in inches to a value in logical pixels."""
+    return scale(value, logicalDpi())
+
+def logicalPxToInch(value: Union[int, float, QPoint, QPointF, QSize, QSizeF, QRect, QRectF]):
+    """Convert a value in logical pixels to a value in inches."""
+    return scale(value, 1/logicalDpi())
+
+def inchToPhysicalPx(value: Union[int, float, QPoint, QPointF, QSize, QSizeF, QRect, QRectF]):
+    """Convert a value in inches to a value in physical pixels."""
+    return scale(value, logicalDpi())
+
+def physicalPxToInch(value: Union[int, float, QPoint, QPointF, QSize, QSizeF, QRect, QRectF]):
+    """Convert a value in physical pixels to a value in inches."""
+    return scale(value, 1/logicalDpi())
+
+def ptToLogicalPx(value: Union[int, float, QPoint, QPointF, QSize, QSizeF, QRect, QRectF]):
+    """Convert a value in points to a value in logical pixels."""
+    return scale(value, logicalDpp())
+
+def logicalPxToPt(value: Union[int, float, QPoint, QPointF, QSize, QSizeF, QRect, QRectF]):
+    """Convert a value in logical pixels to a value in points."""
+    return scale(value, 1/logicalDpp())
+
+def ptToPhysicalPx(value: Union[int, float, QPoint, QPointF, QSize, QSizeF, QRect, QRectF]):
+    """Convert a value in points to a value in physical pixels."""
+    return scale(value, physicalDpp())
+
+def physicalPxToPt(value: Union[int, float, QPoint, QPointF, QSize, QSizeF, QRect, QRectF]):
+    """Convert a value in physical pixels to a value in points."""
+    return scale(value, 1/physicalDpp())
+
+def fontSizesToLogicalPx(value: Union[int, float, QPoint, QPointF, QSize, QSizeF, QRect, QRectF], font=None):
+    """Convert a value in font-sizes to a value in logicsl pixels.
+    This is useful when you must match something like an icon to the width of the button. In this case, logical DPI is
+    unreliable, because Windows often returns a logical DPI of 96 and uses small font sizes, while MacOS returns a
+    logical DPI of 72 and uses bigger font sizes.
+    When font is None, application default font is used instead.
     """
-    if type(value) is QRect:
-        return QRect(
-            value.topLeft() * dpi(),
-            value.bottomRight() * dpi()
-        )
+    dpp = logicalDpp()
+    if font is None:
+        fontSize = QApplication.instance().font().pointSizeF()
+    else:
+        fontSize = font.pointSizeF()
 
-    if type(value) is QRectF:
-        return QRectF(
-            value.topLeft() * dpi(),
-            value.bottomRight() * dpi()
-        )
+    return scale(value, dpp * fontSize)
 
-    return round(value * dpi())
-
-
-def pixels_to_inches(value):
-    """Convert a value in pixels to a value in inches."""
-    if type(value) is QRect:
-        return QRect(
-            value.topLeft() / dpi(),
-            value.bottomRight() / dpi()
-        )
-
-    if type(value) is QRectF:
-        return QRectF(
-            value.topLeft() / dpi(),
-            value.bottomRight() / dpi()
-        )
-
-    return value / dpi()
+def logicalPxToFontSizes(value: Union[int, float, QPoint, QPointF, QSize, QSizeF, QRect, QRectF], font=None):
+    """Convert a value in physical pixels to a value in font sizes."""
+    dpp = logicalDpp()
+    if font is None:
+        fontSize = QApplication.instance().font().pointSizeF()
+    else:
+        fontSize = font.pointSizeF()
+    
+    return scale(value, 1/(dpp * fontSize))

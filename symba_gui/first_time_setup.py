@@ -11,7 +11,7 @@ from PySide2.QtWidgets import QDialog, QMessageBox, QLabel, QProgressBar, QVBoxL
 from PySide2.QtSvg import QSvgWidget
 import symba_gui as package
 from .util import ExceptionMessageBox
-from .dpi import inches_to_pixels as px
+from .dpi import fontSizesToLogicalPx as fs
 
 
 class FirstTimeSetup(QDialog):
@@ -51,7 +51,7 @@ class FirstTimeSetup(QDialog):
 
         self.setWindowTitle("First time setup")
         self.setWindowFlags(Qt.Window | Qt.CustomizeWindowHint | Qt.WindowTitleHint)
-        self.setFixedWidth(px(3.5))
+        self.setFixedWidth(fs(35))
 
         wtitle = QLabel("Performing first time setup:")
         self.wprogress_bar = QProgressBar()
@@ -60,7 +60,7 @@ class FirstTimeSetup(QDialog):
         self.icons = []
         for _ in range(len(self.steps)):
             icon = QSvgWidget(str(package.dir / "data/icons/checkmark.svg"))
-            icon.setFixedSize(px(0.15), px(0.15))
+            icon.setFixedSize(fs(1), fs(1))
             policy = icon.sizePolicy()
             policy.setRetainSizeWhenHidden(True)
             icon.setSizePolicy(policy)
