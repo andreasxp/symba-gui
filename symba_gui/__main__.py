@@ -97,21 +97,19 @@ class MainWindow(QMainWindow):
         lycontrol = QVBoxLayout()
         self.wcontrol.setLayout(lycontrol)
 
-        wcontainer = QWidget()
-        wcontainer.setContentsMargins(0, 0, 0, 0)
-        lycontainer = QHBoxLayout()
-        lycontainer.setContentsMargins(0, 0, 0, 0)
-        wcontainer.setLayout(lycontainer)
-
         self.wsim_button = QPushButton(" Simulate")
         self.wsim_button.setIcon(QIcon(str(package.dir / "data/icons/play.svg")))
         self.wsim_button.setIconSize(QSize(fs(1), fs(1)))
         self.wsim_button.clicked.connect(self.actionStartSimulation)
-        lycontainer.addWidget(self.wsim_button)
 
         self.wsim_progess_bar = QProgressBar()
+
+        lycontainer = QHBoxLayout()
+        lycontainer.setContentsMargins(0, 0, 0, 0)
+        lycontainer.addWidget(self.wsim_button)
         lycontainer.addWidget(self.wsim_progess_bar)
-        lycontrol.addWidget(wcontainer)
+        
+        lycontrol.addLayout(lycontainer)
         lycontrol.addStretch()
 
         # Simulation Properties ----------------------------------------------------------------------------------------
@@ -808,7 +806,12 @@ def main():
     app = QApplication(sys.argv)
     app.setApplicationName("symba-gui")
     app.setApplicationDisplayName("Symba Designer")
-    app.setWindowIcon(QIcon(str(package.dir / "data/icons/icon.ico")))
+
+    if platform.system() == "darwin":
+        app.setWindowIcon(QIcon(str(package.dir / "data/icons/icon-macos.png")))
+    else:
+        app.setWindowIcon(QIcon(str(package.dir / "data/icons/icon-generic.png")))
+    
     app.setStyle(QStyleFactory.create("fusion"))
     args = parse_args()
 
