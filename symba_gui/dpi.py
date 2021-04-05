@@ -1,11 +1,11 @@
 """Converts units in inches to units in pixels using logical dpi of the application."""
 from typing import Union
-from functools import cache
+from functools import lru_cache
 from PySide2.QtCore import QPoint, QPointF, QSize, QSizeF, QRect, QRectF
 from PySide2.QtWidgets import QApplication, QWidget
 
 
-@cache
+@lru_cache(maxsize=None)
 def logicalDpi():
     """Return this application's logical dpi"""
     # Check if the application has been created. If the application has not been created, dpi cannot be measured.
@@ -15,7 +15,7 @@ def logicalDpi():
     w = QWidget()
     return w.logicalDpiX()
 
-@cache
+@lru_cache(maxsize=None)
 def physicalDpi():
     """Return this application's logical dpi"""
     # Check if the application has been created. If the application has not been created, dpi cannot be measured.
@@ -25,12 +25,12 @@ def physicalDpi():
     w = QWidget()
     return w.physicalDpiX()
 
-@cache
+@lru_cache(maxsize=None)
 def logicalDpp():
     """Return this application's logical dots-per-point (font point)"""
     return logicalDpi() / 72
 
-@cache
+@lru_cache(maxsize=None)
 def physicalDpp():
     """Return this application's logical dots-per-point (font point)"""
     return physicalDpi() / 72
