@@ -648,12 +648,10 @@ class MainWindow(QMainWindow):
         # Configure progress bar
         self.wsim_progess_bar.setRange(0, 0)
 
-        n_rounds = self.wn_rounds.value()
-        n_steps = self.wn_steps.value()
-        def updateProgressBar(round, step):
-            self.wsim_progess_bar.setRange(0, n_rounds * n_steps)
-            self.wsim_progess_bar.setValue(round * n_steps + step)
-        self.simulation.stepChanged.connect(updateProgressBar)
+        def updateProgressBar(progress):
+            self.wsim_progess_bar.setRange(0, 100)
+            self.wsim_progess_bar.setValue(progress)
+        self.simulation.progessAdvanced.connect(updateProgressBar)
 
         # Change start button to stop
         self.wsim_button.setIcon(QIcon(str(package.dir / "data/icons/stop.svg")))

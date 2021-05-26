@@ -117,7 +117,7 @@ class FirstTimeSetup(QDialog):
         else:
             ext = "tar.gz"
         
-        self.exe_url = f"https://github.com/andreasxp/symba-releases/releases/download/1.0.0/symba-x64-{system}.{ext}"
+        self.exe_url = f"https://github.com/andreasxp/symba-releases/releases/download/1.1.0/symba-x64-{system}.{ext}"
         self.compressed_bin_path.parent.mkdir(parents=True, exist_ok=True)
 
         Thread(target=self._downloadExe).start()
